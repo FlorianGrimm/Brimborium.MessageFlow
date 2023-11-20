@@ -1,29 +1,27 @@
 ﻿namespace Brimborium.MessageFlow.Disposable;
 
 public interface IAsyncDisposableAndCancellation
-    : IDisposableAndCancellation
+    : IDisposableWithState
     , IAsyncDisposable {
 }
 
 public class AsyncDisposableAndCancellation
-    : DisposableAndCancellation
+    : DisposableWithState
     , IAsyncDisposableAndCancellation
-    , IAsyncDisposable
-{
+    , IAsyncDisposable {
 
-    protected AsyncDisposableAndCancellation(ILogger? logger = default)
-        : base(logger)
-    {
+    protected AsyncDisposableAndCancellation(
+        ILogger? logger)
+        : base(
+            logger: logger) {
     }
 
-    protected virtual ValueTask<bool> DisposeAsync(bool disposing)
-    {
+    protected virtual ValueTask<bool> DisposeAsync(bool disposing) {
         var result = this.Dispose(disposing);
         return ValueTask.FromResult(result);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         await this.DisposeAsync(true);
         System.GC.SuppressFinalize(this);
     }

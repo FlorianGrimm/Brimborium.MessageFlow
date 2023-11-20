@@ -4,7 +4,7 @@ public class MessageSinkChannel<T>
     : MessageSink<T>
     where T : RootMessage {
     private readonly Channel<RootMessage> _Channel;
-    private readonly ChannelOptions _ChannelOptions;
+    //private readonly ChannelOptions _ChannelOptions;
 
     public MessageSinkChannel(
         NodeIdentifier sinkId,
@@ -18,13 +18,13 @@ public class MessageSinkChannel<T>
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
             };
-            this._ChannelOptions = boundedChannelOptions;
+            //this._ChannelOptions = boundedChannelOptions;
             this._Channel = Channel.CreateBounded<RootMessage>(boundedChannelOptions);
         } else if (channelOptions is BoundedChannelOptions boundedChannelOptions) {
-            this._ChannelOptions = boundedChannelOptions;
+            //this._ChannelOptions = boundedChannelOptions;
             this._Channel = Channel.CreateBounded<RootMessage>(boundedChannelOptions);
         } else if (channelOptions is UnboundedChannelOptions unboundedChannelOptions) {
-            this._ChannelOptions = unboundedChannelOptions;
+            //this._ChannelOptions = unboundedChannelOptions;
             this._Channel = Channel.CreateUnbounded<RootMessage>(unboundedChannelOptions);
         } else {
             throw new ArgumentException("unknown type", nameof(channelOptions));
@@ -52,8 +52,8 @@ public class MessageSinkChannel<T>
         CancellationToken cancellationToken
         ) {
         var writer = this._Channel.Writer;
-        var connection = new MessageEdgeConnection<T>(
-            this.Logger, senderId, this, writer);
+        var connection = new MessageConnectionChannel<T>(
+            senderId, this, writer, this.Logger);
         lock (this._ListSource) {
             this._ListSource.Add(new(senderId, new(connection)));
         }
@@ -61,22 +61,22 @@ public class MessageSinkChannel<T>
         return new MessageConnectResult<T>(connection, this);
     }
 
-    public override bool Disconnect(IMessageEdgeConnection<T> messageEdgeConnection) {
+    public override bool Disconnect(IMessageConnection<T> messageConnection) {
         lock (this._ListSource) {
             for (var idx = 0; idx < this._ListSource.Count; idx++) {
                 var item = this._ListSource[idx];
-                if (item.Key.Id == messageEdgeConnection.SourceId.Id) {
+                if (item.Key.Id == messageConnection.SourceId.Id) {
                     if (item.Value.TryGetTarget(out var target)) {
-                        if (ReferenceEquals(target, messageEdgeConnection)) {
+                        if (ReferenceEquals(target, messageConnection)) {
                             this._ListSource.RemoveAt(idx);
-                            messageEdgeConnection.Dispose();
+                            messageConnection.Dispose();
                             return true;
                         }
                     } else {
                         this._ListSource.RemoveAt(idx);
                         idx--;
                     }
-                    messageEdgeConnection.Dispose();
+                    messageConnection.Dispose();
                     return true;
                 }
             }
@@ -220,7 +220,7 @@ public class MessageSinkChannel<T>
     }
 
     public override CoordinatorNodeSink GetCoordinatorNodeSink() {
-        List<NodeIdentifier> listSourceId = new();
+        List<NodeIdentifier> listSourceId = [];
         lock (this._ListSource) {
             foreach (var item in this._ListSource) {
                 if (item.Value.TryGetTarget(out var connection)) {

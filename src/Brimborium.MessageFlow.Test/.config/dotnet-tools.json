@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools-weg": {
+    "dotnet-stryker": {
+      "version": "3.11.1",
+      "commands": [
+        "dotnet-stryker"
+      ]
+    }
+  }
+}

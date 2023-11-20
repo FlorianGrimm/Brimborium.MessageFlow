@@ -1,29 +1,24 @@
 namespace Brimborium.MessageFlow;
 
 public interface IMessageOutgoingSource
-    : IDisposableAndCancellation {
+    : IDisposableWithState {
     NodeIdentifier SourceId { get; }
-
-    // bool TryGetMessageSinkConnection([MaybeNullWhen(false)] out IMessageEdgeConnection<T> connection);
 
     bool IsConnected { get; }
 
-    // ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageSink<T> messageSink, CancellationToken cancellationToken);
-
     void Disconnect();
 
-    // ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
     ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
 }
 
 public abstract class MessageOutgoingSource
-    : DisposableAndCancellation
+    : DisposableWithState
     , IMessageOutgoingSource {
     protected NodeIdentifier _SourceId;
 
-    public MessageOutgoingSource(
+    protected MessageOutgoingSource(
         NodeIdentifier sourceId,
-        ILogger? logger = default
+        ILogger? logger
         ) : base(logger) {
         this._SourceId = sourceId;
     }
@@ -41,23 +36,13 @@ public abstract class MessageOutgoingSource
 public interface IMessageOutgoingSource<T>
     : IMessageOutgoingSource
     where T : RootMessage {
-    // IMessageSource
-    // NodeIdentifier SourceId { get; }
 
     bool TryGetMessageSinkConnection(
-        [MaybeNullWhen(false)] out IMessageEdgeConnection<T> connection);
+        [MaybeNullWhen(false)] out IMessageConnection<T> connection);
 
-    // IMessageSource
-    // bool IsConnected { get; }
     ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken);
 
-    // IMessageSource
-    // void Disconnect();
-
     ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
-
-    // IMessageSource
-    // ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
 }
 
 public abstract class MessageOutgoingSource<T>
@@ -67,21 +52,13 @@ public abstract class MessageOutgoingSource<T>
 
     public MessageOutgoingSource(
         NodeIdentifier sourceId,
-        ILogger? logger = default
+        ILogger? logger
         ) : base(sourceId, logger) {
     }
 
-    // public NodeIdentifier SourceId => _SourceId;
-
-    // public abstract bool IsConnected { get; }
-
     public abstract ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken);
-
-    // public abstract void Disconnect();
 
     public abstract ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
 
-    // public abstract ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
-
-    public abstract bool TryGetMessageSinkConnection([MaybeNullWhen(false)] out IMessageEdgeConnection<T> connection);
+    public abstract bool TryGetMessageSinkConnection([MaybeNullWhen(false)] out IMessageConnection<T> connection);
 }

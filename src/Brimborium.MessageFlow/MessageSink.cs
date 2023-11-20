@@ -1,58 +1,53 @@
 namespace Brimborium.MessageFlow;
 
 public interface IMessageIncomingSink
-    : IDisposableAndCancellation {
+    : IDisposableWithState {
     NodeIdentifier SinkId { get; }
 
     CoordinatorNodeSink GetCoordinatorNodeSink();
 }
 
-public interface IMessageIncomingSink<T>
+public interface IMessageIncomingSink<TInput>
     : IMessageIncomingSink
-    where T : RootMessage {
+    where TInput : RootMessage {
 
-    ValueTask<MessageConnectResult<T>> ConnectAsync(
+    ValueTask<MessageConnectResult<TInput>> ConnectAsync(
         NodeIdentifier senderId,
         CancellationToken cancellationToken);
 }
 
-public record MessageConnectResult<T>(
-    IMessageEdgeConnection<T> Connection,
+public record MessageConnectResult<TValue>(
+    IMessageConnection<TValue> Connection,
     IMessageSinkExecution MessageSinkExecution
-    ) where T : RootMessage;
+    ) where TValue : RootMessage;
 
-public interface IMessageSinkInternal<T>
-    : IMessageIncomingSink<T>
-    where T : RootMessage {
+public interface IMessageSinkInternal<TInput>
+    : IMessageIncomingSink<TInput>
+    where TInput : RootMessage {
 
     bool Disconnect(
-        IMessageEdgeConnection<T> messageEdgeConnection);
+        IMessageConnection<TInput> messageConnection);
 }
 
-public abstract class MessageSink<T>
-    : DisposableAndCancellation
-    , IMessageIncomingSink<T>
-    , IMessageSinkInternal<T>
-    , IMessageSinkExecution
-    where T : RootMessage {
-    protected NodeIdentifier _SinkId;
-    protected CancellationTokenSource? _ExecuteTokenSource;
-    protected Task _ExecuteTask = Task.CompletedTask;
-    protected readonly List<KeyValuePair<NodeIdentifier, WeakReference<IMessageEdgeConnection<T>>>> _ListSource;
-
-    public MessageSink(
+public abstract class MessageSink<TInput>(
         NodeIdentifier sinkId,
         ILogger logger
-        ) : base(logger) {
-        this._SinkId = sinkId;
-        this._ListSource = new ();
-    }
+    )
+    : DisposableWithState(logger)
+    , IMessageIncomingSink<TInput>
+    , IMessageSinkInternal<TInput>
+    , IMessageSinkExecution
+    where TInput : RootMessage {
+    protected NodeIdentifier _SinkId = sinkId;
+    protected CancellationTokenSource? _ExecuteTokenSource;
+    protected Task _ExecuteTask = Task.CompletedTask;
+    protected readonly List<KeyValuePair<NodeIdentifier, WeakReference<IMessageConnection<TInput>>>> _ListSource = [];
 
     public NodeIdentifier SinkId => this._SinkId;
 
-    public abstract ValueTask<MessageConnectResult<T>> ConnectAsync(NodeIdentifier senderId, CancellationToken cancellationToken);
+    public abstract ValueTask<MessageConnectResult<TInput>> ConnectAsync(NodeIdentifier senderId, CancellationToken cancellationToken);
 
-    public abstract bool Disconnect(IMessageEdgeConnection<T> messageEdgeConnection);
+    public abstract bool Disconnect(IMessageConnection<TInput> messageConnection);
 
 
     public virtual Task StartAsync(CancellationToken cancellationToken)
@@ -61,8 +56,7 @@ public abstract class MessageSink<T>
     public virtual Task ExecuteAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
-
-    public virtual ValueTask HandleDataMessageAsync(T message, CancellationToken cancellationToken) {
+    public virtual ValueTask HandleDataMessageAsync(TInput message, CancellationToken cancellationToken) {
         return ValueTask.CompletedTask;
     }
 
@@ -71,7 +65,7 @@ public abstract class MessageSink<T>
     }
 
     public virtual CoordinatorNodeSink GetCoordinatorNodeSink() {
-        List<NodeIdentifier> listSourceId = new();
+        List<NodeIdentifier> listSourceId = [];
         lock (this._ListSource) {
             foreach (var item in this._ListSource) {
                 if (item.Value.TryGetTarget(out var connection)) {

@@ -8,10 +8,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 internal static class TypeNameHelper {
-    private const char DefaultNestedTypeDelimiter = '+';
+    private const char _DefaultNestedTypeDelimiter = '+';
 
-    private static readonly Dictionary<Type, string> _BuiltInTypeNames = new Dictionary<Type, string>
-    {
+    private static readonly Dictionary<Type, string> _BuiltInTypeNames = new() {
             { typeof(void), "void" },
             { typeof(bool), "bool" },
             { typeof(byte), "byte" },
@@ -44,7 +43,7 @@ internal static class TypeNameHelper {
     /// <param name="includeGenericParameters"><c>true</c> to include generic parameters.</param>
     /// <param name="nestedTypeDelimiter">Character to use as a delimiter in nested type names</param>
     /// <returns>The pretty printed type name.</returns>
-    public static string GetTypeDisplayName(Type type, bool fullName = true, bool includeGenericParameterNames = false, bool includeGenericParameters = true, char nestedTypeDelimiter = DefaultNestedTypeDelimiter) {
+    public static string GetTypeDisplayName(Type type, bool fullName = true, bool includeGenericParameterNames = false, bool includeGenericParameters = true, char nestedTypeDelimiter = _DefaultNestedTypeDelimiter) {
         StringBuilder? builder = null;
         string? name = ProcessType(ref builder, type, new DisplayNameOptions(fullName, includeGenericParameterNames, includeGenericParameters, nestedTypeDelimiter));
         var result = name ?? builder?.ToString() ?? string.Empty;
@@ -57,17 +56,11 @@ internal static class TypeNameHelper {
     private static string? ProcessType(ref StringBuilder? builder, Type type, in DisplayNameOptions options) {
         if (type.IsGenericType) {
             Type[] genericArguments = type.GetGenericArguments();
-            // builder ??= new StringBuilder();
-            if (builder is null) {
-                builder = ObjectPoolStringBuilder.Get();
-            }
+            builder ??= ObjectPoolStringBuilder.Get();
 
             ProcessGenericType(builder, type, genericArguments, genericArguments.Length, options);
         } else if (type.IsArray) {
-            // builder ??= new StringBuilder();
-            if (builder is null) {
-                builder = ObjectPoolStringBuilder.Get();
-            }
+            builder ??= ObjectPoolStringBuilder.Get();
             ProcessArrayType(builder, type, options);
         } else if (_BuiltInTypeNames.TryGetValue(type, out string? builtInName)) {
             if (builder is null) return builtInName;
@@ -83,16 +76,16 @@ internal static class TypeNameHelper {
             string name = options.FullName ? type.FullName! : type.Name;
 
             if (builder is null) {
-                if (options.NestedTypeDelimiter != DefaultNestedTypeDelimiter) {
-                    return name.Replace(DefaultNestedTypeDelimiter, options.NestedTypeDelimiter);
+                if (options.NestedTypeDelimiter != _DefaultNestedTypeDelimiter) {
+                    return name.Replace(_DefaultNestedTypeDelimiter, options.NestedTypeDelimiter);
                 }
 
                 return name;
             }
 
             builder.Append(name);
-            if (options.NestedTypeDelimiter != DefaultNestedTypeDelimiter) {
-                builder.Replace(DefaultNestedTypeDelimiter, options.NestedTypeDelimiter, builder.Length - name.Length, name.Length);
+            if (options.NestedTypeDelimiter != _DefaultNestedTypeDelimiter) {
+                builder.Replace(_DefaultNestedTypeDelimiter, options.NestedTypeDelimiter, builder.Length - name.Length, name.Length);
             }
         }
 
@@ -156,6 +149,7 @@ internal static class TypeNameHelper {
         }
     }
 
+#if false
     private readonly struct DisplayNameOptions {
         public DisplayNameOptions(bool fullName, bool includeGenericParameterNames, bool includeGenericParameters, char nestedTypeDelimiter) {
             FullName = fullName;
@@ -172,17 +166,19 @@ internal static class TypeNameHelper {
 
         public char NestedTypeDelimiter { get; }
     }
+#endif
+    private record struct DisplayNameOptions(bool FullName, bool IncludeGenericParameterNames, bool IncludeGenericParameters, char NestedTypeDelimiter);
 
 
     internal record struct CacheKey(
-        Type type,
-        bool fullName,
-        bool includeGenericParameterNames,
-        bool includeGenericParameters,
-        char nestedTypeDelimiter
+        Type Type,
+        bool FullName,
+        bool IncludeGenericParameterNames,
+        bool IncludeGenericParameters,
+        char NestedTypeDelimiter
         );
 
-    private static System.Collections.Concurrent.ConcurrentDictionary<CacheKey, string> _Cache = new();
+    private static readonly ConcurrentDictionary<CacheKey, string> _Cache = new();
 
     /// <summary>
     /// Pretty print a type name.
@@ -193,7 +189,7 @@ internal static class TypeNameHelper {
     /// <param name="includeGenericParameters"><c>true</c> to include generic parameters.</param>
     /// <param name="nestedTypeDelimiter">Character to use as a delimiter in nested type names</param>
     /// <returns>The pretty printed type name.</returns>
-    public static string GetTypeDisplayNameCached(Type type, bool fullName = true, bool includeGenericParameterNames = false, bool includeGenericParameters = true, char nestedTypeDelimiter = DefaultNestedTypeDelimiter) {
+    public static string GetTypeDisplayNameCached(Type type, bool fullName = true, bool includeGenericParameterNames = false, bool includeGenericParameters = true, char nestedTypeDelimiter = _DefaultNestedTypeDelimiter) {
         var key = new CacheKey(type, fullName, includeGenericParameterNames, includeGenericParameters, nestedTypeDelimiter);
         if (_Cache.TryGetValue(key, out var result)) {
             return result;

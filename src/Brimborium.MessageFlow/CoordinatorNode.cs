@@ -2,14 +2,14 @@
 namespace Brimborium.MessageFlow;
 
 public interface IWithCoordinatorNode {
-    void CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget);
+    bool CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget);
 }
 
 public record CoordinatorNode(
     NodeIdentifier NameId,
-    List<NodeIdentifier>? ListSourceId = default,
-    List<CoordinatorNodeSink>? ListSink = default,
-    List<NodeIdentifier>? ListChildren = default
+    List<NodeIdentifier> ListSourceId,
+    List<CoordinatorNodeSink> ListSink,
+    List<NodeIdentifier> ListChildren
 ) {
     public int Order { get; set; } = 0;
     public StringBuilder ToString(StringBuilder sb) {
@@ -43,7 +43,10 @@ public record CoordinatorNode(
     public override string ToString() => this.ToString(new StringBuilder()).ToString();
 }
 
-public class EqualityComparerCoordinatorNodeNameId : IEqualityComparer<CoordinatorNode> {
+public sealed class EqualityComparerCoordinatorNodeNameId : IEqualityComparer<CoordinatorNode> {
+    private static EqualityComparerCoordinatorNodeNameId? _Instance;
+    public static EqualityComparerCoordinatorNodeNameId Instance => _Instance ??= new EqualityComparerCoordinatorNodeNameId();
+
     public bool Equals(CoordinatorNode? x, CoordinatorNode? y) {
         if (ReferenceEquals(x, y)) { return true; }
         if (x is null) { return false; }
@@ -78,7 +81,7 @@ public class CoordinatorCollector {
     private readonly HashSet<CoordinatorNode> _HashSetTarget;
 
     public CoordinatorCollector() {
-        this._HashSetTarget = new HashSet<CoordinatorNode>();
+        this._HashSetTarget = new HashSet<CoordinatorNode>(EqualityComparerCoordinatorNodeNameId.Instance);
     }
 
     public CoordinatorCollector CollectCoordinatorNode(
@@ -87,4 +90,16 @@ public class CoordinatorCollector {
         withCoordinatorNode?.CollectCoordinatorNode(this._HashSetTarget);
         return this;
     }
+
+    public CoordinatorCollector CollectCoordinatorNode(
+        CoordinatorNode? coordinatorNode
+        ) {
+        if (coordinatorNode is not null) { 
+            this._HashSetTarget.Add(coordinatorNode);
+        }
+        return this;
+    }
+
+    public List<CoordinatorNode> GetListCoordinatorNode()
+        => [.. this._HashSetTarget];
 }

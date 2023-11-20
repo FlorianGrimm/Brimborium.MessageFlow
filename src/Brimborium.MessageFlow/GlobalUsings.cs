@@ -1,5 +1,6 @@
 global using global::Brimborium.MessageFlow.Tracing;
 global using global::Brimborium.MessageFlow.Disposable;
+global using global::Brimborium.MessageFlow.Extensions;
 global using global::Brimborium.MessageFlow.Internal;
 
 global using global::Microsoft.Extensions.Configuration;
@@ -10,6 +11,7 @@ global using global::Microsoft.Extensions.Primitives;
 global using global::Microsoft.Extensions.ObjectPool;
 global using global::Microsoft.Extensions.Hosting;
 
+global using global::System.Collections.Concurrent;
 global using global::System.Collections.Immutable;
 global using global::System.Diagnostics.CodeAnalysis;
 global using global::System.Runtime.CompilerServices;
