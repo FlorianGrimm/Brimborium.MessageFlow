@@ -1,0 +1,5 @@
+<Project>
+    <PropertyGroup>
+        <UsedTargetFramework>net7.0</UsedTargetFramework>
+    </PropertyGroup>
+</Project>
