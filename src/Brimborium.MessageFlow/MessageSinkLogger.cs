@@ -8,11 +8,7 @@ public class MessageSinkLogger<T>
     [ActivatorUtilitiesConstructor]
     public MessageSinkLogger(
         ILogger<MessageSinkLogger<T>> logger
-        ) : base(
-            NodeIdentifier.Create("Logger"),
-            default,
-            logger
-            ) {
+        ) : base(NodeIdentifier.Create("Logger"), default, default, logger) {
         this._Logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -20,7 +16,7 @@ public class MessageSinkLogger<T>
         NodeIdentifier sinkId,
         ChannelOptions? channelOptions,
         ILogger logger
-        ) : base(sinkId, channelOptions, logger) {
+        ) : base(sinkId, channelOptions, default, logger) {
         this._Logger = logger;
     }
 

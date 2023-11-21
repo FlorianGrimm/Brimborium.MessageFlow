@@ -2,13 +2,13 @@ namespace Brimborium.MessageFlow;
 
 public sealed class MessageOutgoingSourceMultiTarget<T>(
         NodeIdentifier sourceId,
+        IMessageProcessorInternal? processorOwner,
         ILogger? logger)
-    : MessageOutgoingSource<T>(
-        sourceId: sourceId,
-        logger: logger
-    ), IMessageConnection<T>
+    : MessageOutgoingSource<T>(sourceId, logger)
+    , IMessageConnection<T>
     where T : RootMessage {
     private readonly List<IMessageConnection<T>> _ListMessageSinkConnection = new();
+    private IMessageProcessorInternal? _ProcessorOwner = processorOwner;
 
     public override async ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken) {
         var result = await messageSink.ConnectAsync(this._SourceId, cancellationToken);
@@ -16,25 +16,32 @@ public sealed class MessageOutgoingSourceMultiTarget<T>(
             this._ListMessageSinkConnection.Add(result.Connection);
         }
         this.Logger.LogMessageSinkConnectionConnectSource(this.SourceId, messageSink.SinkId);
+        this._ProcessorOwner?.OnConnected(result.Connection);
         return result;
     }
 
     public override bool IsConnected => this._ListMessageSinkConnection.Count > 0;
 
     public override void Disconnect() {
-        List<IMessageConnection<T>> listConnectionToDisconnect;
+        IMessageConnection<T>[] listConnectionToDisconnect;
         lock (this) {
             if (this._ListMessageSinkConnection.Count == 0) {
                 return;
             }
-            listConnectionToDisconnect = new(this._ListMessageSinkConnection);
-            this._ListMessageSinkConnection.Clear();
+            listConnectionToDisconnect = this._ListMessageSinkConnection.ToArray();
         }
         foreach (var connection in listConnectionToDisconnect) {
-            if (connection is MessageConnectionChannel<T> messageConnectionChannel) {
-                this.Logger.LogMessageSinkConnectionDisconnectSource(this.SourceId, messageConnectionChannel.SinkId);
+            bool isRemoved;
+            lock (this) {
+                isRemoved = this._ListMessageSinkConnection.Remove(connection);
             }
-            connection.Disconnect();
+            if (isRemoved) {
+                if (connection is MessageConnectionChannel<T> messageConnectionChannel) {
+                    this.Logger.LogMessageSinkConnectionDisconnectSource(this.SourceId, messageConnectionChannel.SinkId);
+                }
+                connection.Disconnect();
+                this._ProcessorOwner?.OnDisconnect(connection);
+            }
         }
     }
 
@@ -88,7 +95,10 @@ public sealed class MessageOutgoingSourceMultiTarget<T>(
 
     protected override bool Dispose(bool disposing) {
         if (base.Dispose(disposing)) {
-            this.Disconnect();
+            if (disposing) {
+                this.Disconnect();
+            }
+            this._ProcessorOwner = null;
             return true;
         } else {
             return false;

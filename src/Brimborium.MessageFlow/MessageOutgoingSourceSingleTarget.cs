@@ -1,20 +1,14 @@
 namespace Brimborium.MessageFlow;
 
-public sealed class MessageOutgoingSourceSingleTarget<T>
-    : MessageOutgoingSource<T>
+public sealed class MessageOutgoingSourceSingleTarget<T>(
+        NodeIdentifier sourceId,
+        ILogger logger
+    ) : MessageOutgoingSource<T>(sourceId, logger)
     where T : RootMessage {
     private IMessageConnection<T>? _MessageSinkConnection;
 
-    public MessageOutgoingSourceSingleTarget(
-        NodeIdentifier sourceId,
-        ILogger logger
-        ) : base(
-            sourceId: sourceId,
-            logger: logger) {
-    }
-
     public override async ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken) {
-        var result=await messageSink.ConnectAsync(this._SourceId, cancellationToken);
+        var result = await messageSink.ConnectAsync(this._SourceId, cancellationToken);
         this._MessageSinkConnection = result.Connection;
         this.Logger.LogMessageSourceConnectSource(this.SourceId, messageSink.SinkId);
         return result;
@@ -25,7 +19,7 @@ public sealed class MessageOutgoingSourceSingleTarget<T>
     public override void Disconnect() {
         var messageSinkConnection = this._MessageSinkConnection;
         this._MessageSinkConnection = null;
-        if (messageSinkConnection is not null) { 
+        if (messageSinkConnection is not null) {
             messageSinkConnection.Disconnect();
             if (messageSinkConnection is MessageConnection<T> messageConnection) {
                 this.Logger.LogMessageSourceDisconnectSource(this.SourceId, messageConnection.SinkId);
@@ -49,21 +43,19 @@ public sealed class MessageOutgoingSourceSingleTarget<T>
 
     public override ValueTask SendDataAsync(T message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this.GetIsDisposed(), this);
-        if (this._MessageSinkConnection is null) {
+        if (!this.TryGetMessageSinkConnection(out var messageSinkConnection)) {
             throw new InvalidOperationException("MessageSink is not connected");
-        }
-        {
-            return this._MessageSinkConnection.SendDataAsync(message, cancellationToken);
+        } else { 
+            return messageSinkConnection.SendDataAsync(message, cancellationToken);
         }
     }
 
     public override ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this.GetIsDisposed(), this);
-        if (this._MessageSinkConnection is null) {
+        if (!this.TryGetMessageSinkConnection(out var messageSinkConnection)) {
             throw new InvalidOperationException("MessageSink is not connected");
-        }
-        {
-            return this._MessageSinkConnection.SendControlAsync(message, cancellationToken);
+        } else {
+            return messageSinkConnection.SendControlAsync(message, cancellationToken);
         }
     }
 

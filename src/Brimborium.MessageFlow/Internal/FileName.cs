@@ -194,7 +194,7 @@ internal static class TypeNameHelper {
         if (_Cache.TryGetValue(key, out var result)) {
             return result;
         } else {
-            result = GetTypeDisplayNameCached(type, fullName, includeGenericParameterNames, includeGenericParameters, nestedTypeDelimiter);
+            result = GetTypeDisplayName(type, fullName, includeGenericParameterNames, includeGenericParameters, nestedTypeDelimiter);
             _Cache.TryAdd(key, result);
             return result;
         }

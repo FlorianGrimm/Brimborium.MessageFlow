@@ -74,15 +74,13 @@ public record CoordinatorNodeSink(
 
         return sb;
     }
+
     public override string ToString() => this.ToString(new StringBuilder()).ToString();
 }
 
 public class CoordinatorCollector {
-    private readonly HashSet<CoordinatorNode> _HashSetTarget;
-
-    public CoordinatorCollector() {
-        this._HashSetTarget = new HashSet<CoordinatorNode>(EqualityComparerCoordinatorNodeNameId.Instance);
-    }
+    private readonly HashSet<CoordinatorNode> _HashSetTarget
+        = new(EqualityComparerCoordinatorNodeNameId.Instance);
 
     public CoordinatorCollector CollectCoordinatorNode(
         IWithCoordinatorNode? withCoordinatorNode
@@ -94,12 +92,33 @@ public class CoordinatorCollector {
     public CoordinatorCollector CollectCoordinatorNode(
         CoordinatorNode? coordinatorNode
         ) {
-        if (coordinatorNode is not null) { 
-            this._HashSetTarget.Add(coordinatorNode);
+        if (coordinatorNode is not null) {
+            lock (this._HashSetTarget) {
+                this._HashSetTarget.Add(coordinatorNode);
+            }
         }
         return this;
     }
 
-    public List<CoordinatorNode> GetListCoordinatorNode()
-        => [.. this._HashSetTarget];
+    public List<CoordinatorNode> GetListCoordinatorNode() {
+        lock (this._HashSetTarget) {
+            return [.. this._HashSetTarget];
+        }
+    }
+
+    public static List<NodeIdentifier> ToListCoordinatorNodeSourceId(ImmutableArray<IMessageOutgoingSource> listOutgoingSource) {
+        List<NodeIdentifier> result = new();
+        foreach (var outgoingSource in listOutgoingSource) {
+            result.Add(outgoingSource.SourceId);
+        }
+        return result;
+    }
+
+    public static List<CoordinatorNodeSink> ToListCoordinatorNodeSink(ImmutableArray<IMessageIncomingSink> listIncomingSink) {
+        List<CoordinatorNodeSink> result = new();
+        foreach (var incomingSink in listIncomingSink) {
+            result.Add(incomingSink.GetCoordinatorNodeSink());
+        }
+        return result;
+    }
 }

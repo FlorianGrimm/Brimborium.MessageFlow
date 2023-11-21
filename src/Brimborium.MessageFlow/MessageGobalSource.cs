@@ -8,7 +8,7 @@ public class MessageGobalSource(
     , IWithCoordinatorNode {
     protected readonly NodeIdentifier _NameId = nameId;
     protected readonly Dictionary<string, IMessageOutgoingSource> _DictOutgoingSource = new(StringComparer.Ordinal);
-    protected readonly List<IMessageOutgoingSource> _ListOutgoingSource = new();
+    protected ImmutableArray<IMessageOutgoingSource> _ListOutgoingSource = [];
 
     public NodeIdentifier NameId => this._NameId;
 
@@ -28,7 +28,8 @@ public class MessageGobalSource(
                     this.Logger
                     );
                 if (this._DictOutgoingSource.TryAdd(childName, resultT)) {
-                    this._StateVersion++;
+                    this.StateVersion++;
+                    this._ListOutgoingSource = this._DictOutgoingSource.Values.ToImmutableArray();
                     return resultT;
                 } else {
                     return null;
@@ -42,7 +43,7 @@ public class MessageGobalSource(
         => this.GetOutgoingSource<T>(name) ?? throw new ArgumentException("cannot resolve name to a source", nameof(name));
 
     public async ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken) {
-        List<IMessageOutgoingSource> listOutgoingSource = this._ListOutgoingSource;
+        var listOutgoingSource = this._ListOutgoingSource;
         foreach (var outgoingSource in listOutgoingSource) {
             await outgoingSource.SendControlAsync(message, cancellationToken).ConfigureAwait(false);
         }

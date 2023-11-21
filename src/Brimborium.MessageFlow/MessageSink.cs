@@ -39,8 +39,7 @@ public abstract class MessageSink<TInput>(
     , IMessageSinkExecution
     where TInput : RootMessage {
     protected NodeIdentifier _SinkId = sinkId;
-    protected CancellationTokenSource? _ExecuteTokenSource;
-    protected Task _ExecuteTask = Task.CompletedTask;
+    // protected Task _ExecuteTask = Task.CompletedTask;
     protected readonly List<KeyValuePair<NodeIdentifier, WeakReference<IMessageConnection<TInput>>>> _ListSource = [];
 
     public NodeIdentifier SinkId => this._SinkId;
@@ -56,20 +55,21 @@ public abstract class MessageSink<TInput>(
     public virtual Task ExecuteAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
-    public virtual ValueTask HandleDataMessageAsync(TInput message, CancellationToken cancellationToken) {
-        return ValueTask.CompletedTask;
-    }
+    public virtual ValueTask HandleDataMessageAsync(TInput message, CancellationToken cancellationToken) 
+        => ValueTask.CompletedTask;
 
-    public virtual ValueTask HandleControlMessageAsync(RootMessage message, CancellationToken cancellationToken) {
-        return ValueTask.CompletedTask;
-    }
+    public virtual ValueTask HandleControlMessageAsync(RootMessage message, CancellationToken cancellationToken) 
+        => ValueTask.CompletedTask;
 
     public virtual CoordinatorNodeSink GetCoordinatorNodeSink() {
         List<NodeIdentifier> listSourceId = [];
         lock (this._ListSource) {
             foreach (var item in this._ListSource) {
                 if (item.Value.TryGetTarget(out var connection)) {
-                    listSourceId.Add(connection.SourceId);
+                    var sourceId = connection.SourceId;
+                    if (sourceId.Id > 0) { 
+                        listSourceId.Add(sourceId);
+                    }
                 }
             }
         }

@@ -9,7 +9,7 @@ public class DisposableWithState
     : IDisposableWithState
     , IDisposable {
     protected readonly ILogger Logger;
-    protected int _StateVersion;
+    protected int StateVersion;
     private bool _IsDisposed;
 
     protected DisposableWithState(
@@ -21,7 +21,7 @@ public class DisposableWithState
     protected virtual bool Dispose(bool disposing) {
         if (!this._IsDisposed) {
             this._IsDisposed = true;
-            this._StateVersion++;
+            this.StateVersion++;
             if (disposing) {
                 //
             } else {

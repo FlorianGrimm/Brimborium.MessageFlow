@@ -1,19 +1,19 @@
 ﻿namespace Brimborium.MessageFlow;
 
 public class MessageGobalSink(
-            string name,
-            string nameIncomingSink,
-            ITraceDataService? traceDataService,
-            ILogger logger
-        )
+        string name,
+        IMessageProcessorExamine? messageProcessorExamine,
+        ITraceDataService? traceDataService,
+        ILogger logger
+    )
     : MessageProcessorWithIncomingSink<RootMessage>(
-            name,
-            nameIncomingSink,
+            NodeIdentifier.Create(name),
+            "Sink",
             MessageGlobalIncomingSinkFactory.Instance,
+            messageProcessorExamine,
             traceDataService,
             logger) {
     protected readonly Dictionary<string, IMessageIncomingSink> _DictSink = new(StringComparer.Ordinal);
-    protected List<IMessageIncomingSink> _ListIncomingSink = new();
     protected Queue<RootMessage> _QueueMessages = new();
 
     public IMessageIncomingSink<TInput>? GetIncomingSink<TInput>(
@@ -35,8 +35,8 @@ public class MessageGobalSink(
                     this.Logger
                     );
                 if (this._DictSink.TryAdd(childName, resultT)) {
-                    this._StateVersion++;
-                    this._ListIncomingSink = this.GetListIncomingSink();
+                    this.StateVersion++;
+                    this._ListIncomingSink = this.GetListIncomingSink().ToImmutableArray();
                     return resultT;
                 } else {
                     return default;
@@ -50,30 +50,11 @@ public class MessageGobalSink(
         )
         where TInput : RootMessage
         => this.GetIncomingSink<TInput>(name)
-        ?? throw new ArgumentException("Cannot resolve name to sink", nameof(name));
+            ?? throw new ArgumentException("Cannot resolve name to sink", nameof(name));
 
     protected override List<IMessageIncomingSink> GetListIncomingSink()
-        => base.GetListIncomingSink().AddRangeIfNotNull(this._DictSink.Values);
-
-    public override bool CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget) {
-        List<CoordinatorNodeSink> listSink
-            = (this._IncomingSink is not null)
-                ? [this._IncomingSink.GetCoordinatorNodeSink()]
-                : [];
-
-        if (this.GetListIncomingSink() is List<IMessageIncomingSink> listMessageIncomingSink) {
-            foreach (var messageIncomingSink in listMessageIncomingSink) {
-                listSink.Add(messageIncomingSink.GetCoordinatorNodeSink());
-            }
-        }
-
-        return listTarget.Add(
-            new CoordinatorNode(
-                this._NameId,
-                new(),
-                listSink,
-                new()));
-    }
+        => base.GetListIncomingSink()
+            .AddRangeIfNotNull(this._DictSink.Values);
 
     protected Task _TaskExecute = Task.CompletedTask;
     public virtual Task StartAsync(CancellationToken cancellationToken) {
@@ -111,8 +92,15 @@ public class MessageGobalSink(
         }
     }
 
+    protected override ValueTask HandleDataMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        // Do not foreward this message
+        this.ExamineDataMessage(message);
+        return ValueTask.CompletedTask;
+    }
+
     protected override ValueTask HandleControlMessageAsync(RootMessage message, CancellationToken cancellationToken) {
         // Do not foreward this message
+        this.ExamineControlMessage(message);
         return ValueTask.CompletedTask;
     }
 }
@@ -156,7 +144,7 @@ public class MessageGlobalIncomingSink<TInput>
             senderId, this, this.Logger);
         lock (this._ListSource) {
             this._ListSource.Add(new(senderId, new(connection)));
-            this._StateVersion++;
+            this.StateVersion++;
         }
         return ValueTask.FromResult(new MessageConnectResult<TInput>(connection, this));
     }
@@ -170,7 +158,7 @@ public class MessageGlobalIncomingSink<TInput>
                         if (ReferenceEquals(target, messageConnection)) {
                             this._ListSource.RemoveAt(idx);
                             messageConnection.Dispose();
-                            this._StateVersion++;
+                            this.StateVersion++;
                             return true;
                         }
                     } else {
@@ -180,7 +168,7 @@ public class MessageGlobalIncomingSink<TInput>
                 }
             }
             messageConnection.Dispose();
-            this._StateVersion++;
+            this.StateVersion++;
             return false;
         }
     }
@@ -189,7 +177,7 @@ public class MessageGlobalIncomingSink<TInput>
         if (this._MessageGobalSink is MessageGobalSink messageGobalSink) {
             messageGobalSink.SendControl(message);
             await messageGobalSink.StartAsync(cancellationToken);
-        } else if (this._MessageGobalSink is IMessageProcessorWithIncomingSinkInternal sinkInternal) {
+        } else if (this._MessageGobalSink is IMessageProcessorInternal sinkInternal) {
             await sinkInternal.HandleControlMessageAsync(message, cancellationToken);
         }
     }
@@ -198,7 +186,7 @@ public class MessageGlobalIncomingSink<TInput>
         if (this._MessageGobalSink is MessageGobalSink messageGobalSink) {
             messageGobalSink.SendControl(message);
             await messageGobalSink.StartAsync(cancellationToken);
-        } else if (this._MessageGobalSink is IMessageProcessorWithIncomingSinkInternal sinkInternal) {
+        } else if (this._MessageGobalSink is IMessageProcessorInternal sinkInternal) {
             await sinkInternal.HandleControlMessageAsync(message, cancellationToken);
         }
     }

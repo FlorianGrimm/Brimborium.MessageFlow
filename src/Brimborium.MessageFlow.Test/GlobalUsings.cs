@@ -17,5 +17,7 @@ global using global::System.Text;
 global using global::System.Text.Json;
 global using global::System.Text.Json.Serialization;
 global using global::System.Threading.Channels;
+
 global using global::Xunit;
+global using global::Xunit.Abstractions;
 //

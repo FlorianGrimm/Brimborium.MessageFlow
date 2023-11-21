@@ -1,15 +1,21 @@
 namespace Brimborium.MessageFlow;
 
-public interface IMessageConnection<T>
-    : IDisposableWithState
-    where T : RootMessage {
+public interface IMessageConnection
+    : IDisposableWithState {
     NodeIdentifier SourceId { get; }
 
-    ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
+    //NodeIdentifier SinkId { get; }
 
     ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
 
     void Disconnect();
+}
+
+public interface IMessageConnection<T>
+    : IMessageConnection
+    where T : RootMessage {
+
+    ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
 }
 
 public abstract class MessageConnection<T>

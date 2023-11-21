@@ -1,5 +1,20 @@
 namespace Brimborium.MessageFlow;
 
+[System.Flags]
+public enum MessageAction {
+    None = 0x00,
+    Disconnect = 0x01,
+    Propagate = 0x02,
+    Control = 0x04,
+    Data = 0x08,
+    Flow = 0x10,
+    Group = 0x20,
+    Start = 0x40,
+    End = 0x80,
+    FlowStart = MessageAction.Flow| MessageAction.Start,
+    FlowEnd = MessageAction.Flow | MessageAction.End | MessageAction.Disconnect | MessageAction.Propagate
+}
+
 public record class RootMessage(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
@@ -10,6 +25,8 @@ public record class RootMessage(
     public MessageLog ToRootMessageLog() => new(this);
 
     public virtual string? GetExtraInfo() => default;
+
+    public virtual MessageAction GetMessageAction() => MessageAction.None;
 }
 
 public readonly struct MessageLog(RootMessage rootMessage) {
@@ -46,6 +63,8 @@ public sealed record class MessageFlowStart(
 
     public MessageFlowEnd CreateEnd(Exception? error = default)
         => new(this.MessageId.GetNextGroupMessageIdentifier(), this.SourceId, DateTimeOffset.UtcNow, error);
+
+    public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.Start;
 }
 
 public sealed record class MessageFlowEnd(
@@ -54,6 +73,8 @@ public sealed record class MessageFlowEnd(
     DateTimeOffset CreatedAt,
     Exception? Error
     ) : RootMessage(MessageId, SourceId, CreatedAt) {
+
+    public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.End;
 }
 
 public sealed record class MessageFlowReport(
@@ -68,15 +89,26 @@ public sealed record class MessageFlowReport(
             nameId ?? NodeIdentifier.Empty,
             DateTimeOffset.UtcNow,
             coordinatorCollector ?? new());
+
+    public override MessageAction GetMessageAction() => MessageAction.Data;
 }
 
+
+public record class MessageData(
+    MessageIdentifier MessageId,
+    NodeIdentifier SourceId,
+    DateTimeOffset CreatedAt
+    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    public override MessageAction GetMessageAction() => MessageAction.Data;
+}
 
 public record class MessageData<TData>(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt,
     TData Data
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : MessageData(MessageId, SourceId, CreatedAt) {
+    public override MessageAction GetMessageAction() => MessageAction.Data;
 }
 
 public record class MessageGroupStart(
@@ -104,6 +136,8 @@ public record class MessageGroupStart(
             this.SourceId,
             DateTimeOffset.UtcNow,
             error);
+
+    public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Group | MessageAction.Start;
 }
 
 public record class MessageGroupData<TData>(
@@ -112,6 +146,7 @@ public record class MessageGroupData<TData>(
     DateTimeOffset CreatedAt,
     TData Data
     ) : MessageData<TData>(MessageId, SourceId, CreatedAt, Data) {
+    public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Group | MessageAction.Data;
 }
 
 public record class MessageGroupEnd(
@@ -120,4 +155,5 @@ public record class MessageGroupEnd(
     DateTimeOffset CreatedAt,
     Exception? Error
     ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Group | MessageAction.End;
 }

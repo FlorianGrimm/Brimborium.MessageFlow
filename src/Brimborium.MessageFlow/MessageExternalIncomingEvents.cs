@@ -29,20 +29,37 @@ public class MessageExternalIncomingEvents<TOutput>
     }
 }
 #endif
-public class MessageExternalIncomingEvents<TOutput>
-    : MessageProcessorTransform<RootMessage, TOutput>
-    where TOutput : RootMessage {
-    public MessageExternalIncomingEvents(
-        string name,
+public class MessageExternalIncomingEvents<TOutput>(
+        NodeIdentifier nameId,
         string nameIncomingSink,
         string nameOutgoingSource,
+        IMessageProcessorExamine? messageProcessorExamine,
         ITraceDataService? traceDataService,
         ILogger logger
-        ): base(
-            name: name,
-            nameIncomingSink: nameIncomingSink,
-            nameOutgoingSource: nameOutgoingSource,
-            traceDataService:traceDataService, 
-            logger:logger) {
+        )
+    : MessageProcessorTransform<RootMessage, TOutput>(
+            nameId,
+            nameIncomingSink,
+            nameOutgoingSource,
+            messageProcessorExamine,
+            traceDataService,
+            logger)
+    where TOutput : RootMessage {
+    /*
+    public MessageExternalIncomingEvents(
+        NodeIdentifier nameId,
+        string nameIncomingSink,
+        string nameOutgoingSource,
+        IMessageProcessorExamine? messageProcessorExamine,
+        ITraceDataService? traceDataService,
+        ILogger logger
+        ) : base(
+            nameId,
+            nameIncomingSink,
+            nameOutgoingSource,
+            messageProcessorExamine,
+            traceDataService,
+            logger) {
     }
+    */
 }

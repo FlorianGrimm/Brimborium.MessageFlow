@@ -1,31 +1,29 @@
 ﻿namespace Brimborium.MessageFlow;
 
-public class MessageSinkChannel<T>
-    : MessageSink<T>
-    where T : RootMessage {
-    private readonly Channel<RootMessage> _Channel;
-    //private readonly ChannelOptions _ChannelOptions;
-
-    public MessageSinkChannel(
+public class MessageSinkChannel<T>(
         NodeIdentifier sinkId,
         ChannelOptions? channelOptions,
+        IMessageProcessorInternal? processorOwner,
         ILogger logger
-        ) : base(
-            sinkId,
-            logger) {
+    ) : MessageSink<T>(sinkId, logger)
+    where T : RootMessage {
+    protected Task _ExecuteTask = Task.CompletedTask;
+    protected IMessageProcessorInternal? _ProcessorOwner = processorOwner;
+    private Channel<RootMessage>? _Channel = CreateChannel(channelOptions);
+
+    protected static Channel<RootMessage> CreateChannel(
+        ChannelOptions? channelOptions
+        ) {
         if (channelOptions is null) {
             var boundedChannelOptions = new BoundedChannelOptions(10000) {
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
             };
-            //this._ChannelOptions = boundedChannelOptions;
-            this._Channel = Channel.CreateBounded<RootMessage>(boundedChannelOptions);
+            return Channel.CreateBounded<RootMessage>(boundedChannelOptions);
         } else if (channelOptions is BoundedChannelOptions boundedChannelOptions) {
-            //this._ChannelOptions = boundedChannelOptions;
-            this._Channel = Channel.CreateBounded<RootMessage>(boundedChannelOptions);
+            return Channel.CreateBounded<RootMessage>(boundedChannelOptions);
         } else if (channelOptions is UnboundedChannelOptions unboundedChannelOptions) {
-            //this._ChannelOptions = unboundedChannelOptions;
-            this._Channel = Channel.CreateUnbounded<RootMessage>(unboundedChannelOptions);
+            return Channel.CreateUnbounded<RootMessage>(unboundedChannelOptions);
         } else {
             throw new ArgumentException("unknown type", nameof(channelOptions));
         }
@@ -33,13 +31,18 @@ public class MessageSinkChannel<T>
 
     protected override bool Dispose(bool disposing) {
         if (base.Dispose(disposing)) {
-            if (this._ExecuteTask.IsCompleted) {
+            //if (this._ExecuteTask.IsCompleted) {
+            //} else {
+            //    try {
+            //        this._ExecuteTask.GetAwaiter().GetResult();
+            //    } catch (Exception error) {
+            //        this.Logger.LogWarning(error, "While Dispose");
+            //    }
+            //}
+            if (disposing) {
+                this._ProcessorOwner = null;
+                this._Channel = default;
             } else {
-                try {
-                    this._ExecuteTask.GetAwaiter().GetResult();
-                } catch (Exception error) {
-                    this.Logger.LogWarning(error, "While Dispose");
-                }
             }
             return true;
         } else {
@@ -51,6 +54,7 @@ public class MessageSinkChannel<T>
         NodeIdentifier senderId,
         CancellationToken cancellationToken
         ) {
+        ObjectDisposedException.ThrowIf(this.GetIsDisposed() || (this._Channel is null), this);
         var writer = this._Channel.Writer;
         var connection = new MessageConnectionChannel<T>(
             senderId, this, writer, this.Logger);
@@ -58,6 +62,7 @@ public class MessageSinkChannel<T>
             this._ListSource.Add(new(senderId, new(connection)));
         }
         await this.StartAsync(cancellationToken);
+        this._ProcessorOwner?.OnConnected(connection);
         return new MessageConnectResult<T>(connection, this);
     }
 
@@ -86,101 +91,21 @@ public class MessageSinkChannel<T>
 
     public override Task StartAsync(CancellationToken cancellationToken) {
         if (this._ExecuteTask.IsCompleted) {
-            this._ExecuteTask = this.ExecuteAsyncInternal(cancellationToken);
+            this._ExecuteTask = this.ExecuteLoopAsync(cancellationToken);
         }
         return Task.CompletedTask;
     }
 
-#if false
-    private async Task ExecuteAsyncInternal(CancellationToken cancellationToken) {
-        CancellationTokenSource executeTokenSource;
-        var singleReader = this._ChannelOptions.SingleReader;
-        if (singleReader) {
-            lock (this) {
-                if (this._ExecuteTokenSource is null) {
-                    var disposeToken = this.GetDisposeToken();
-                    executeTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    this._ExecuteTokenSource = executeTokenSource;
-                    disposeToken.Register((that) => {
-                        if (this._ExecuteTokenSource is CancellationTokenSource tokenSource) {
-                            try {
-                                if (tokenSource.IsCancellationRequested) {
-                                    //
-                                } else {
-                                    tokenSource.Cancel();
-                                }
-                            } catch (ObjectDisposedException) {
-                            }
-                        } else {
-                        }
-                    }, this);
-                } else {
-                    return;
-                }
-            }
-        } else {
-            var disposeToken = this.GetDisposeToken();
-            executeTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            disposeToken.Register((state) => {
-                if (state is CancellationTokenSource tokenSource) {
-                    try {
-                        if (tokenSource.IsCancellationRequested) {
-                            //
-                        } else {
-                            tokenSource.Cancel();
-                        }
-                    } catch (ObjectDisposedException) {
-                    }
-                } else {
-                }
-            }, executeTokenSource);
-        }
-
+    protected virtual async Task ExecuteLoopAsync(CancellationToken cancellationToken) {
         try {
-            var executeToken = executeTokenSource.Token;
+            ObjectDisposedException.ThrowIf(this.GetIsDisposed() || (this._Channel is null), this);
             var reader = this._Channel.Reader;
-            this.Logger.LogDebug("Execute SinkId: {SinkId}", this.SinkId);
-            while (!executeToken.IsCancellationRequested) {
-                if (reader.TryRead(out var message)) {
-                    try {
-                        if (message is T tMessage) {
-                            await this.HandleMessage(tMessage, executeToken);
-                        } else {
-                            await this.HandleControlMessage(message, executeToken);
-                        }
-                    } catch (OperationCanceledException) {
-                        this.Logger.LogDebug("Execute canceled SinkId: {SinkId}", this.SinkId);
-                        return;
-                    } catch (Exception error) {
-                        this.Logger.LogError(error, "error");
-                    }
-                } else {
-                    try {
-                        await reader.WaitToReadAsync(executeToken).ConfigureAwait(false);
-                    } catch (OperationCanceledException) {
-                        this.Logger.LogDebug("Execute canceled SinkId: {SinkId}", this.SinkId);
-                        return;
-                    }
-                }
-            }
-            this.Logger.LogDebug("Execute finished SinkId: {SinkId}", this.SinkId);
-        } catch (System.Exception error) {
-            this.Logger.LogError(error, "Fatal error");
-            throw;
-        } finally {
-            using (var cts = this._ExecuteTokenSource) {
-                this._ExecuteTokenSource = null;
-            }
-        }
-    }
-#endif
 
-    protected virtual async Task ExecuteAsyncInternal(CancellationToken cancellationToken) {
-        try {
-            var reader = this._Channel.Reader;
             this.Logger.LogDebug("Execute SinkId: {SinkId}", this.SinkId);
             while (!cancellationToken.IsCancellationRequested) {
-                if (reader.TryRead(out var message)) {
+                if (this.GetIsDisposed() || (this._Channel is null)) {
+                    break;
+                } else if (reader.TryRead(out var message)) {
                     try {
                         if (message is T tMessage) {
                             await this.HandleDataMessageAsync(tMessage, cancellationToken);
@@ -214,27 +139,22 @@ public class MessageSinkChannel<T>
             return this._ExecuteTask;
         }
         if (this._ExecuteTask.IsCompleted) {
-            this._ExecuteTask = this.ExecuteAsyncInternal(cancellationToken);
+            this._ExecuteTask = this.ExecuteLoopAsync(cancellationToken);
         }
         return this._ExecuteTask;
     }
 
     public override CoordinatorNodeSink GetCoordinatorNodeSink() {
-        List<NodeIdentifier> listSourceId = [];
         lock (this._ListSource) {
+            List<NodeIdentifier> listSourceId = [];
             foreach (var item in this._ListSource) {
                 if (item.Value.TryGetTarget(out var connection)) {
                     listSourceId.Add(connection.SourceId);
                 }
             }
+            return new CoordinatorNodeSink(this._SinkId, listSourceId);
         }
-        return new CoordinatorNodeSink(
-            this._SinkId,
-            listSourceId
-        );
     }
 
-
-    public Channel<RootMessage> GetChannel() => this._Channel;
-
+    public Channel<RootMessage>? GetChannel() => this._Channel;
 }

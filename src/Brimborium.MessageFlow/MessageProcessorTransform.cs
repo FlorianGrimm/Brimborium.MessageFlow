@@ -11,48 +11,54 @@ public class MessageProcessorTransform<TInput, TOutput>
 
     protected MessageProcessorTransform(
         string name,
+        IMessageProcessorExamine? messageProcessorExamine,
         ITraceDataService? traceDataService,
         ILogger logger
     ) : this(
-        name: name,
-        nameIncomingSink: "Sink",
-        nameOutgoingSource: "Source",
-        incomingSinkFactory: IMessageProcessorSinkFactory.Instance,
-        outgoingSourceFactory: IMessageProcessorSourceFactory.Instance,
-        traceDataService: traceDataService,
-        logger: logger) {
+        NodeIdentifier.Create(name),
+        "Sink",
+        "Source",
+        IMessageProcessorSinkFactory.Instance,
+        IMessageProcessorSourceFactory.Instance,
+        messageProcessorExamine,
+        traceDataService,
+        logger) {
     }
 
     protected MessageProcessorTransform(
-        string name,
+        NodeIdentifier nameId,
         string nameIncomingSink,
         string nameOutgoingSource,
+        IMessageProcessorExamine? messageProcessorExamine,
         ITraceDataService? traceDataService,
         ILogger logger
     ) : this(
-            name: name,
-            nameIncomingSink: nameIncomingSink,
-            nameOutgoingSource: nameOutgoingSource,
-            incomingSinkFactory: IMessageProcessorSinkFactory.Instance,
-            outgoingSourceFactory: IMessageProcessorSourceFactory.Instance,
-            traceDataService: traceDataService,
-            logger: logger) {
+            nameId,
+            nameIncomingSink,
+            nameOutgoingSource,
+            IMessageProcessorSinkFactory.Instance,
+            IMessageProcessorSourceFactory.Instance,
+            messageProcessorExamine,
+            traceDataService,
+            logger) {
     }
 
     protected MessageProcessorTransform(
-        string name,
+        NodeIdentifier nameId,
         string nameIncomingSink,
         string nameOutgoingSource,
         IMessageProcessorSinkFactory incomingSinkFactory,
         IMessageProcessorSourceFactory outgoingSourceFactory,
+        IMessageProcessorExamine? messageProcessorExamine,
         ITraceDataService? traceDataService,
         ILogger logger
         ) : base(
-            name: name,
-            nameIncomingSink: nameIncomingSink,
-            incomingSinkFactory: incomingSinkFactory,
-            traceDataService: traceDataService,
-            logger: logger) {
+            nameId,
+            nameIncomingSink,
+            incomingSinkFactory,
+            messageProcessorExamine,
+            traceDataService,
+            logger) {
         this._OutgoingSource = outgoingSourceFactory
             .Create<TOutput>(this.NameId, NodeIdentifier.CreateChild(this.NameId, nameOutgoingSource), logger);
         this._OutgoingSourceIdName = this._OutgoingSource.SourceId.ToString();
@@ -61,32 +67,25 @@ public class MessageProcessorTransform<TInput, TOutput>
     public IMessageOutgoingSource<TOutput>? OutgoingSource => this._OutgoingSource;
     public IMessageOutgoingSource<TOutput> OutgoingSourceD => this._OutgoingSource ?? throw new InvalidOperationException(nameof(this.OutgoingSourceD));
 
-    protected override List<IMessageOutgoingSource> GetListOutgoingSource() {
-        var result = base.GetListOutgoingSource();
-        if (this._OutgoingSource is not null) {
-            result.Add(this._OutgoingSource);
-        }
-        return result;
-    }
+    protected override List<IMessageOutgoingSource> GetListOutgoingSource()
+        => base.GetListOutgoingSource()
+            .AddValueIfNotNull(this._OutgoingSource);
 
-    public override bool CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget) {
-        return listTarget.Add(
+    public override bool CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget)
+        => listTarget.Add(
             new CoordinatorNode(
                 this._NameId,
-                (this._OutgoingSource is not null)
-                   ? [this._OutgoingSource.SourceId]
-                   : [],
-                (this._IncomingSink is not null)
-                    ? [this._IncomingSink.GetCoordinatorNodeSink()]
-                    : [],
+                CoordinatorCollector.ToListCoordinatorNodeSourceId(this._ListOutgoingSource),
+                CoordinatorCollector.ToListCoordinatorNodeSink(this._ListIncomingSink),
                 new()));
-    }
 
     protected override bool Dispose(bool disposing) {
         if (base.Dispose(disposing)) {
             using (var source = this._OutgoingSource) {
                 if (disposing) {
-                    this._OutgoingSource = null!;
+                    this._OutgoingSource = null;
+                    this.StateVersion++;
+                    this._ListOutgoingSource = [];
                 }
             }
             return true;
@@ -94,28 +93,4 @@ public class MessageProcessorTransform<TInput, TOutput>
             return false;
         }
     }
-}
-
-public interface IMessageProcessorSourceFactory {
-    public static IMessageProcessorSourceFactory Instance => MessageOutgoingSourceMultiTargetFactory.Instance;
-
-    IMessageOutgoingSource<TOutput> Create<TOutput>(NodeIdentifier nameId, NodeIdentifier sourceId, ILogger? logger) where TOutput : RootMessage;
-}
-
-public sealed class MessageOutgoingSourceMultiTargetFactory : IMessageProcessorSourceFactory {
-    private static IMessageProcessorSourceFactory? _Instance;
-    public static IMessageProcessorSourceFactory Instance => _Instance ??= new MessageOutgoingSourceMultiTargetFactory();
-
-    private MessageOutgoingSourceMultiTargetFactory() {
-    }
-
-    public IMessageOutgoingSource<TOutput> Create<TOutput>(
-            NodeIdentifier nameId,
-            NodeIdentifier sourceId,
-            ILogger? logger
-        )
-        where TOutput : RootMessage
-        => new MessageOutgoingSourceMultiTarget<TOutput>(
-            sourceId: sourceId,
-            logger: logger);
 }
