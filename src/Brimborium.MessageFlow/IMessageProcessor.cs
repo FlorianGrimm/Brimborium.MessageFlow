@@ -14,6 +14,7 @@ public interface IMessageProcessor
     ValueTask StartAsync(CancellationToken cancellationToken);
 
     ValueTask ExecuteAsync(CancellationToken cancellationToken);
+    MessageGraphNode ToMessageGraphNode();
 }
 
 public interface IMessageOutgoingSource
@@ -36,6 +37,8 @@ public interface IMessageConnectionAccessor {
     bool TryGetSinks(
        NodeIdentifier sourceId,
        [MaybeNullWhen(false)] out ImmutableArray<IMessageIncomingSink> result);
+    
+    void SetMessageFlowEnd(IMessageProcessor owner);
 }
 
 public interface IMessageIncomingSink
@@ -57,6 +60,8 @@ public interface IMessageIncomingSinkInternal : IMessageIncomingSink {
 public interface IMessageConnection {
     IMessageOutgoingSource OutgoingSource { get; }
     IMessageIncomingSink IncomingSink { get; }
+
+    MessageGraphConnection ToMessageGraphConnection();
 }
 
 public interface IMessageConnection<T>

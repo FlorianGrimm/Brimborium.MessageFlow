@@ -49,6 +49,15 @@ public readonly struct MessageLog(RootMessage rootMessage) {
 
     public string? ExtraInfo
         => this._RootMessage.GetExtraInfo();
+
+    public override string ToString() 
+        => this.ToString(new StringBuilder()).ToString();
+
+    public StringBuilder ToString(StringBuilder sb) {
+        sb.Append(this.MessageType).Append(':');
+        this.MessageId.ToString(sb).Append(' ');
+        return sb;
+    }
 }
 
 
@@ -61,7 +70,7 @@ public sealed record class MessageFlowStart(
     public static MessageFlowStart CreateStart(NodeIdentifier? nameId)
         => new(MessageIdentifier.CreateGroupMessageIdentifier(), nameId ?? NodeIdentifier.Empty, DateTimeOffset.UtcNow);
 
-    public MessageFlowEnd CreateEnd(Exception? error = default)
+    public MessageFlowEnd CreateFlowEnd(Exception? error = default)
         => new(this.MessageId.GetNextGroupMessageIdentifier(), this.SourceId, DateTimeOffset.UtcNow, error);
 
     public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.Start;

@@ -16,4 +16,11 @@ public abstract class MessageProcessor(
     public abstract ValueTask StartAsync(CancellationToken cancellationToken);
 
     public abstract ValueTask ExecuteAsync(CancellationToken cancellationToken);
+
+    public virtual MessageGraphNode ToMessageGraphNode()
+        => new MessageGraphNode(
+            this.NameId, 
+            this.GetListOutgoingSource().ToListNodeIdentifier(),
+            this.GetListIncomingSink().ToListNodeIdentifier(),
+            new());
 }

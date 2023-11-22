@@ -22,6 +22,9 @@ public sealed class MessageConnection(
             messageIncomingSinkInternal.CollectMessageProcessor(htMessageProcessor);
         }
     }
+
+    public MessageGraphConnection ToMessageGraphConnection()
+        => new(this._IncomingSink.NameId, this._OutgoingSource.NameId);
 }
 
 
@@ -50,4 +53,7 @@ public sealed class MessageConnection<T>(
             messageIncomingSinkInternal.CollectMessageProcessor(htMessageProcessor);
         }
     }
+
+    public MessageGraphConnection ToMessageGraphConnection()
+        => new(this._IncomingSinkData.NameId, this._OutgoingSourceData.NameId);
 }

@@ -24,4 +24,8 @@ public readonly record struct MessageIdentifier(
     public MessageIdentifier GetNextGroupMessageIdentifier() {
         return new MessageIdentifier(MessageIdentifierInternal.GetNextMessageId(), this.GroupId);
     }
+    public StringBuilder ToString(StringBuilder sb) {
+        sb.Append(this.GroupId).Append(':').Append(this.MessageId).Append(' ');
+        return sb;
+    }
 }

@@ -23,6 +23,10 @@ public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
 
     public IMessageOutgoingSource<TOutgoingSource> OutgoingSource => this._OutgoingSource ?? throw new ObjectDisposedException(TypeNameHelper.GetTypeDisplayName(this));
 
+    public override List<IMessageIncomingSink> GetListIncomingSink() => new List<IMessageIncomingSink>().AddValueIfNotNull(this._IncomingSink);
+
+    public override List<IMessageOutgoingSource> GetListOutgoingSource() => new List<IMessageOutgoingSource>().AddValueIfNotNull(this._OutgoingSource);
+
     protected Task _TaskExecuteLoop = Task.CompletedTask;
 
     public override ValueTask StartAsync(CancellationToken cancellationToken) {
@@ -42,7 +46,7 @@ public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
             if (!reader.TryRead(out var message)) {
                 try {
                     await reader.WaitToReadAsync(cancellationToken);
-                } catch (TaskCanceledException) {
+                } catch (OperationCanceledException) {
                     reader = null;
                 }
             } else {
@@ -50,6 +54,9 @@ public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
                     await this.HandleDataAsync(incomingSink, cancellationToken);
                 } else {
                     await this.HandleMessageAsync(message, cancellationToken);
+                }
+                if (message is MessageFlowEnd) {
+                    reader = null;
                 }
             }
         }
