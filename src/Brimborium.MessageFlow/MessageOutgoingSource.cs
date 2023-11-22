@@ -1,64 +1,85 @@
+﻿
 namespace Brimborium.MessageFlow;
 
-public interface IMessageOutgoingSource
-    : IDisposableWithState {
-    NodeIdentifier SourceId { get; }
-
-    bool IsConnected { get; }
-
-    void Disconnect();
-
-    ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
-}
-
-public abstract class MessageOutgoingSource
-    : DisposableWithState
-    , IMessageOutgoingSource {
-    protected NodeIdentifier _SourceId;
-
-    protected MessageOutgoingSource(
-        NodeIdentifier sourceId,
-        ILogger? logger
-        ) : base(logger) {
-        this._SourceId = sourceId;
-    }
-
-    public NodeIdentifier SourceId => _SourceId;
-
-    public abstract bool IsConnected { get; }
-
-    public abstract void Disconnect();
-
-    public abstract ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
-}
-
-
-public interface IMessageOutgoingSource<T>
+public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owner)
     : IMessageOutgoingSource
-    where T : RootMessage {
+    , IMessageOutgoingSourceInternal {
+    private readonly NodeIdentifier _NameId = nameId;
+    private readonly IMessageProcessor _Owner = owner;
+    private IMessageConnectionAccessor? _ConnectionAccessor = default;
 
-    bool TryGetMessageSinkConnection(
-        [MaybeNullWhen(false)] out IMessageConnection<T> connection);
+    public NodeIdentifier NameId => this._NameId;
 
-    ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken);
-
-    ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
-}
-
-public abstract class MessageOutgoingSource<T>
-    : MessageOutgoingSource
-    , IMessageOutgoingSource<T>
-    where T : RootMessage {
-
-    public MessageOutgoingSource(
-        NodeIdentifier sourceId,
-        ILogger? logger
-        ) : base(sourceId, logger) {
+    public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
+        if (this._Owner.GetIsDisposed()) {
+        } else {
+            htMessageProcessor.Add(this._Owner);
+        }
     }
 
-    public abstract ValueTask<MessageConnectResult<T>> ConnectAsync(IMessageIncomingSink<T> messageSink, CancellationToken cancellationToken);
+    public void Connect(IMessageConnectionAccessor connectionAccessorn) {
+        this._ConnectionAccessor = connectionAccessorn;
+    }
 
-    public abstract ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
+    public async ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        if (this._ConnectionAccessor is null) {
+            //
+        } else {
+            if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                foreach (IMessageIncomingSink sink in listSinks) {
+                    await sink.ReceiveMessageAsync(message, cancellationToken);
+                }
+            }
+        }
+    }
+}
 
-    public abstract bool TryGetMessageSinkConnection([MaybeNullWhen(false)] out IMessageConnection<T> connection);
+public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor owner)
+    : IMessageOutgoingSource<T>
+    , IMessageOutgoingSourceInternal
+    where T : RootMessage {
+    private readonly NodeIdentifier _NameId = nameId;
+    private readonly IMessageProcessor _Owner = owner;
+    private IMessageConnectionAccessor? _ConnectionAccessor = default;
+
+    public NodeIdentifier NameId => this._NameId;
+
+    public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
+        if (this._Owner.GetIsDisposed()) {
+        } else {
+            htMessageProcessor.Add(this._Owner);
+        }
+    }
+
+    public void Connect(IMessageConnectionAccessor connectionAccessor) {
+        this._ConnectionAccessor = connectionAccessor;
+    }
+
+    public async ValueTask SendDataAsync(T message, CancellationToken cancellationToken) {
+        if (this._ConnectionAccessor is null) {
+            //
+        } else {
+            if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                foreach (IMessageIncomingSink sink in listSinks) {
+                    if (sink is IMessageIncomingSink<T> messageIncomingSinkT) { 
+                        await messageIncomingSinkT.ReceiveDataAsync(message, cancellationToken);
+                    } else {
+                       await sink.ReceiveMessageAsync(message, cancellationToken);
+                    }
+                }
+            }
+        }
+    }
+
+    public async ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        if (this._ConnectionAccessor is null) {
+            //
+        } else {
+            if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                foreach (IMessageIncomingSink sink in listSinks) {
+                    await sink.ReceiveMessageAsync(message, cancellationToken);
+                }
+            }
+        }
+    }
 }

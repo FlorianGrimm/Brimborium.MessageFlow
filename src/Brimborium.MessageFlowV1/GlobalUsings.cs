@@ -2,7 +2,6 @@ global using global::Brimborium.MessageFlow.Tracing;
 global using global::Brimborium.MessageFlow.Disposable;
 global using global::Brimborium.MessageFlow.Extensions;
 global using global::Brimborium.MessageFlow.Internal;
-global using global::Brimborium.ReturnValue;
 
 global using global::Microsoft.Extensions.Configuration;
 global using global::Microsoft.Extensions.Logging;

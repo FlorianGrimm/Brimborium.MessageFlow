@@ -10,6 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="MessageFlowV1Test.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="MessageFlowV1Test.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
       <PackageReference Include="Meziantou.Extensions.Logging.Xunit" />
       <PackageReference Include="Meziantou.Extensions.Logging.InMemory" />
       <PackageReference Include="Microsoft.NET.Test.Sdk" />

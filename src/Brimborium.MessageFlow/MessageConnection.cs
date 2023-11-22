@@ -1,60 +1,53 @@
+﻿
 namespace Brimborium.MessageFlow;
 
-public interface IMessageConnection
-    : IDisposableWithState {
-    NodeIdentifier SourceId { get; }
-
-    //NodeIdentifier SinkId { get; }
-
-    ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
-
-    void Disconnect();
-}
-
-public interface IMessageConnection<T>
+public sealed class MessageConnection(
+    IMessageOutgoingSource outgoingSource,
+    IMessageIncomingSink incomingSink
+    ) 
     : IMessageConnection
-    where T : RootMessage {
+    , IMessageConnectionInternal {
+    private readonly IMessageOutgoingSource _OutgoingSource = outgoingSource;
+    private readonly IMessageIncomingSink _IncomingSink = incomingSink;
 
-    ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
-}
+    public IMessageOutgoingSource OutgoingSource => this._OutgoingSource;
 
-public abstract class MessageConnection<T>
-    : DisposableWithState
-    , IMessageConnection<T>
-    where T : RootMessage {
-    protected readonly NodeIdentifier _SourceId;
-    protected MessageSink<T>? _MessageSink;
+    public IMessageIncomingSink IncomingSink => this._IncomingSink;
 
-    protected MessageConnection(
-        NodeIdentifier sourceId,
-        MessageSink<T> messageSink,
-        ILogger logger
-        ) : base(logger) {
-        this._SourceId = sourceId;
-        this._MessageSink = messageSink;
-    }
-
-    public NodeIdentifier SourceId => this._SourceId;
-    public NodeIdentifier? SinkId => this._MessageSink?.SinkId;
-
-    public abstract ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
-
-    public abstract ValueTask SendControlAsync(RootMessage message, CancellationToken cancellationToken);
-
-    public virtual void Disconnect() {
-        var messageSink = this._MessageSink;
-        if (messageSink is not null) {
-            this._MessageSink = null;
-            messageSink.Disconnect(this);
+    public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
+        if (this._OutgoingSource is IMessageOutgoingSourceInternal messageOutgoingSourceInternal) {
+            messageOutgoingSourceInternal.CollectMessageProcessor(htMessageProcessor);
+        }
+        if (this._IncomingSink is IMessageIncomingSinkInternal messageIncomingSinkInternal) {
+            messageIncomingSinkInternal.CollectMessageProcessor(htMessageProcessor);
         }
     }
+}
 
-    protected override bool Dispose(bool disposing) {
-        if (base.Dispose(disposing)) {
-            this.Disconnect();
-            return true;
-        } else {
-            return false;
+
+public sealed class MessageConnection<T>(
+    IMessageOutgoingSource<T> outgoingSourceData,
+    IMessageIncomingSink<T> incomingSinkData
+    )
+    : IMessageConnection
+    , IMessageConnection<T>
+    , IMessageConnectionInternal
+    where T : RootMessage {
+    private readonly IMessageOutgoingSource<T> _OutgoingSourceData = outgoingSourceData;
+    private readonly IMessageIncomingSink<T> _IncomingSinkData = incomingSinkData;
+
+    public IMessageOutgoingSource OutgoingSource => this._OutgoingSourceData;
+    public IMessageOutgoingSource<T> OutgoingSourceData => this._OutgoingSourceData;
+
+    public IMessageIncomingSink IncomingSink => this._IncomingSinkData;
+    public IMessageIncomingSink<T> IncomingSinkData => this._IncomingSinkData;
+
+    public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
+        if (this._OutgoingSourceData is IMessageOutgoingSourceInternal messageOutgoingSourceInternal) {
+            messageOutgoingSourceInternal.CollectMessageProcessor(htMessageProcessor);
+        }
+        if (this._IncomingSinkData is IMessageIncomingSinkInternal messageIncomingSinkInternal) {
+            messageIncomingSinkInternal.CollectMessageProcessor(htMessageProcessor);
         }
     }
 }

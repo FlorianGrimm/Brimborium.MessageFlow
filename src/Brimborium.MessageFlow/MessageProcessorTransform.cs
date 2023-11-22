@@ -1,92 +1,69 @@
-﻿namespace Brimborium.MessageFlow;
+﻿
+namespace Brimborium.MessageFlow;
 
-public class MessageProcessorTransform<TInput, TOutput>
-    : MessageProcessorWithIncomingSink<TInput>
-    , IMessageProcessor<TInput, TOutput>
-    where TInput : RootMessage
-    where TOutput : RootMessage {
+public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
+    : MessageProcessor
+    where TIncomingSink : RootMessage
+    where TOutgoingSource : RootMessage {
 
-    protected IMessageOutgoingSource<TOutput>? _OutgoingSource;
-    protected readonly string _OutgoingSourceIdName;
+    protected Channel<RootMessage>? _Channel;
+    protected IMessageIncomingSink<TIncomingSink>? _IncomingSink;
+    protected IMessageOutgoingSource<TOutgoingSource>? _OutgoingSource;
 
-    protected MessageProcessorTransform(
-        string name,
-        IMessageProcessorExamine? messageProcessorExamine,
-        ITraceDataService? traceDataService,
-        ILogger logger
-    ) : this(
-        NodeIdentifier.Create(name),
-        "Sink",
-        "Source",
-        IMessageProcessorSinkFactory.Instance,
-        IMessageProcessorSourceFactory.Instance,
-        messageProcessorExamine,
-        traceDataService,
-        logger) {
-    }
-
-    protected MessageProcessorTransform(
+    public MessageProcessorTransform(
         NodeIdentifier nameId,
-        string nameIncomingSink,
-        string nameOutgoingSource,
-        IMessageProcessorExamine? messageProcessorExamine,
-        ITraceDataService? traceDataService,
         ILogger logger
-    ) : this(
-            nameId,
-            nameIncomingSink,
-            nameOutgoingSource,
-            IMessageProcessorSinkFactory.Instance,
-            IMessageProcessorSourceFactory.Instance,
-            messageProcessorExamine,
-            traceDataService,
-            logger) {
+    ) : base(nameId, logger) {
+        this._Channel = Channel.CreateUnbounded<RootMessage>();
+        this._IncomingSink = new MessageIncomingSink<TIncomingSink>(nameof(this.IncomingSink), this, this._Channel.Writer.WriteAsync);
+        this._OutgoingSource = new MessageOutgoingSource<TOutgoingSource>(nameof(this.OutgoingSource), this);
     }
 
-    protected MessageProcessorTransform(
-        NodeIdentifier nameId,
-        string nameIncomingSink,
-        string nameOutgoingSource,
-        IMessageProcessorSinkFactory incomingSinkFactory,
-        IMessageProcessorSourceFactory outgoingSourceFactory,
-        IMessageProcessorExamine? messageProcessorExamine,
-        ITraceDataService? traceDataService,
-        ILogger logger
-        ) : base(
-            nameId,
-            nameIncomingSink,
-            incomingSinkFactory,
-            messageProcessorExamine,
-            traceDataService,
-            logger) {
-        this._OutgoingSource = outgoingSourceFactory
-            .Create<TOutput>(this.NameId, NodeIdentifier.CreateChild(this.NameId, nameOutgoingSource), logger);
-        this._OutgoingSourceIdName = this._OutgoingSource.SourceId.ToString();
+    public IMessageIncomingSink<TIncomingSink> IncomingSink => this._IncomingSink ?? throw new ObjectDisposedException(TypeNameHelper.GetTypeDisplayName(this));
+
+    public IMessageOutgoingSource<TOutgoingSource> OutgoingSource => this._OutgoingSource ?? throw new ObjectDisposedException(TypeNameHelper.GetTypeDisplayName(this));
+
+    protected Task _TaskExecuteLoop = Task.CompletedTask;
+
+    public override ValueTask StartAsync(CancellationToken cancellationToken) {
+        if (this._TaskExecuteLoop.IsCompleted) {
+            this._TaskExecuteLoop = this.ExecuteLoopAsync(cancellationToken);
+        }
+        return ValueTask.CompletedTask;
     }
 
-    public IMessageOutgoingSource<TOutput>? OutgoingSource => this._OutgoingSource;
-    public IMessageOutgoingSource<TOutput> OutgoingSourceD => this._OutgoingSource ?? throw new InvalidOperationException(nameof(this.OutgoingSourceD));
+    public override async ValueTask ExecuteAsync(CancellationToken cancellationToken) {
+        await this._TaskExecuteLoop.ConfigureAwait(false);
+    }
 
-    protected override List<IMessageOutgoingSource> GetListOutgoingSource()
-        => base.GetListOutgoingSource()
-            .AddValueIfNotNull(this._OutgoingSource);
+    protected virtual async Task ExecuteLoopAsync(CancellationToken cancellationToken) {
+        var reader = this._Channel?.Reader;
+        while (!cancellationToken.IsCancellationRequested && reader is not null && this._Channel is not null) {
+            if (!reader.TryRead(out var message)) {
+                try {
+                    await reader.WaitToReadAsync(cancellationToken);
+                } catch (TaskCanceledException) {
+                    reader = null;
+                }
+            } else {
+                if (message is TIncomingSink incomingSink) {
+                    await this.HandleDataAsync(incomingSink, cancellationToken);
+                } else {
+                    await this.HandleMessageAsync(message, cancellationToken);
+                }
+            }
+        }
 
-    public override bool CollectCoordinatorNode(HashSet<CoordinatorNode> listTarget)
-        => listTarget.Add(
-            new CoordinatorNode(
-                this._NameId,
-                CoordinatorCollector.ToListCoordinatorNodeSourceId(this._ListOutgoingSource),
-                CoordinatorCollector.ToListCoordinatorNodeSink(this._ListIncomingSink),
-                new()));
+    }
+
+    protected abstract ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken);
+
+    protected abstract ValueTask HandleDataAsync(TIncomingSink message, CancellationToken cancellationToken);
 
     protected override bool Dispose(bool disposing) {
         if (base.Dispose(disposing)) {
-            using (var source = this._OutgoingSource) {
-                if (disposing) {
-                    this._OutgoingSource = null;
-                    this.StateVersion++;
-                    this._ListOutgoingSource = [];
-                }
+            if (disposing) {
+                this._Channel = null;
             }
             return true;
         } else {

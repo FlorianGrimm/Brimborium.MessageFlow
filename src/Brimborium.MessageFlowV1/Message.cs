@@ -77,6 +77,23 @@ public sealed record class MessageFlowEnd(
     public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.End;
 }
 
+public sealed record class MessageFlowReport(
+    MessageIdentifier MessageId,
+    NodeIdentifier SourceId,
+    DateTimeOffset CreatedAt,
+    CoordinatorCollector CoordinatorCollector
+    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    public static MessageFlowReport Create(NodeIdentifier? nameId, CoordinatorCollector? coordinatorCollector)
+        => new(
+            MessageIdentifier.CreateMessageIdentifier(),
+            nameId ?? NodeIdentifier.Empty,
+            DateTimeOffset.UtcNow,
+            coordinatorCollector ?? new());
+
+    public override MessageAction GetMessageAction() => MessageAction.Data;
+}
+
+
 public record class MessageData(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
