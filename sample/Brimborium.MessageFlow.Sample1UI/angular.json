@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "Brimborium.MessageFlow.Sample1UI": {
+    "Brimborium-MessageFlow-Sample1UI": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -99,6 +99,42 @@
           }
         }
       }
+    },
+    "Brimborium-MessageFlow-FrontEnd": {
+      "projectType": "library",
+      "root": "projects/brimborium-message-flow-front-end",
+      "sourceRoot": "..\..\src\Brimborium.MessageFlow.FrontEnd\angular.json",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/brimborium-message-flow-front-end/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/brimborium-message-flow-front-end/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/brimborium-message-flow-front-end/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "tsConfig": "projects/brimborium-message-flow-front-end/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ]
+          }
+        }
+      }
     }
+  },
+  "cli": {
+    "analytics": "d5690907-b124-4bfb-afca-6c041c29b953"
   }
 }

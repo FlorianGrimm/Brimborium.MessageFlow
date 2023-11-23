@@ -1,10 +1,8 @@
-using Brimborium.MessageFlow;
-using Brimborium.MessageFlow.APIServer;
 
-using Swashbuckle.AspNetCore.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
-
+Microsoft.Extensions.Hosting.Extensions.AddServiceDefaults(builder);
+////builder.Services.AddServiceDefaults();
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
