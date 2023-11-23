@@ -1,9 +1,11 @@
 ﻿namespace Brimborium.MessageFlow;
 
-public record MessageGraph(
+public record MessageFlowGraph(
     List<MessageGraphNode> ListNode,
     List<MessageGraphConnection> ListConnection
-    );
+    ) {
+    public MessageFlowGraph() : this(new(), new()) { }
+}
 
 public record MessageGraphNode(
     NodeIdentifier NameId,
@@ -59,5 +61,6 @@ public sealed class EqualityComparerCoordinatorNodeNameId : IEqualityComparer<Me
 
 public record MessageGraphConnection(
     NodeIdentifier SourceId,
-    NodeIdentifier SinkId
-    );
+    NodeIdentifier SourceNodeId,
+    NodeIdentifier SinkId,
+    NodeIdentifier SinkNodeId);

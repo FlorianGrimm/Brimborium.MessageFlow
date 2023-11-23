@@ -1,4 +1,5 @@
 ﻿
+
 namespace Brimborium.MessageFlow;
 
 public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owner)
@@ -9,6 +10,8 @@ public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owne
     private IMessageConnectionAccessor? _ConnectionAccessor = default;
 
     public NodeIdentifier NameId => this._NameId;
+
+    public NodeIdentifier NodeNameId => this._Owner.NameId;
 
     public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
         if (this._Owner.GetIsDisposed()) {
@@ -26,6 +29,7 @@ public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owne
             //
         } else {
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }
@@ -47,6 +51,8 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
 
     public NodeIdentifier NameId => this._NameId;
 
+    public NodeIdentifier NodeNameId => this._Owner.NameId;
+
     public void CollectMessageProcessor(HashSet<IMessageProcessor> htMessageProcessor) {
         if (this._Owner.GetIsDisposed()) {
         } else {
@@ -63,6 +69,7 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
             //
         } else {
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     //if (sink is IMessageIncomingSink<T> messageIncomingSinkT) { 
                     //    await messageIncomingSinkT.ReceiveDataAsync(message, cancellationToken);
@@ -83,6 +90,7 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
             //
         } else {
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
+                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }

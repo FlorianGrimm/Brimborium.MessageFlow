@@ -22,4 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Brimborium.ReturnValue\Brimborium.ReturnValue\Brimborium.ReturnValue.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="Brimborium.MessageFlow" />
+  </ItemGroup>
 </Project>

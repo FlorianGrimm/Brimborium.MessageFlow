@@ -17,6 +17,8 @@ public class MessageIncomingSink
 
     public NodeIdentifier NameId => this._NameId;
 
+    public NodeIdentifier NodeNameId => this._Owner.NameId;
+
     public async ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._Owner.GetIsDisposed(), this);
 
@@ -46,6 +48,8 @@ public class MessageIncomingSink<T>
     }
 
     public NodeIdentifier NameId => this._NameId;
+
+    public NodeIdentifier NodeNameId => this._Owner.NameId;
 
     public async ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._Owner.GetIsDisposed(), this);

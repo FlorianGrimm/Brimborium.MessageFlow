@@ -1,4 +1,5 @@
 ﻿
+
 namespace Brimborium.MessageFlow;
 
 public interface IWithName {
@@ -19,6 +20,8 @@ public interface IMessageProcessor
 
 public interface IMessageOutgoingSource
     : IWithName {
+    NodeIdentifier NodeNameId { get; }
+
     ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken);
 }
 
@@ -43,6 +46,8 @@ public interface IMessageConnectionAccessor {
 
 public interface IMessageIncomingSink
     : IWithName {
+    NodeIdentifier NodeNameId { get; }
+
     ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken);
 }
 
@@ -89,4 +94,8 @@ public interface IMessageEngine
     ValueTask ExecuteAsync(CancellationToken cancellationToken);
 
     //ValueTask ShutdownAsync(CancellationToken cancellationToken);
+    MessageFlowGraph ToMessageFlowGraph();
+    ValueTask<bool> SendFlowEnd(Exception? error = null, CancellationToken cancellationToken = default);
+
+    void HandleApplicationStopping();
 }

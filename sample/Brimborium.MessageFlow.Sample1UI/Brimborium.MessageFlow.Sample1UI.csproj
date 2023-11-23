@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="node_modules/**" />
+    <None Remove="node_modules/**" />
+    <Compile Remove="node_modules/**" />
+  </ItemGroup>
+
+
+</Project>

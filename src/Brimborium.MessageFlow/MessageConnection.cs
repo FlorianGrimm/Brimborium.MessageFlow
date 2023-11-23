@@ -4,7 +4,7 @@ namespace Brimborium.MessageFlow;
 public sealed class MessageConnection(
     IMessageOutgoingSource outgoingSource,
     IMessageIncomingSink incomingSink
-    ) 
+    )
     : IMessageConnection
     , IMessageConnectionInternal {
     private readonly IMessageOutgoingSource _OutgoingSource = outgoingSource;
@@ -24,7 +24,12 @@ public sealed class MessageConnection(
     }
 
     public MessageGraphConnection ToMessageGraphConnection()
-        => new(this._IncomingSink.NameId, this._OutgoingSource.NameId);
+        => new(
+            this._IncomingSink.NameId,
+            this._IncomingSink.NodeNameId,
+            this._OutgoingSource.NameId,
+            this._OutgoingSource.NodeNameId
+            );
 }
 
 
@@ -55,5 +60,9 @@ public sealed class MessageConnection<T>(
     }
 
     public MessageGraphConnection ToMessageGraphConnection()
-        => new(this._IncomingSinkData.NameId, this._OutgoingSourceData.NameId);
+        => new(
+            this._IncomingSinkData.NameId,
+            this._IncomingSinkData.NodeNameId,
+            this._OutgoingSourceData.NameId,
+            this._OutgoingSourceData.NodeNameId);
 }

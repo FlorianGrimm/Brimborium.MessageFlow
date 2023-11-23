@@ -1,0 +1,11 @@
+@Brimborium.MessageFlow.APISample_HostAddress = http://localhost:5182
+
+GET {{Brimborium.MessageFlow.APISample_HostAddress}}/api/messageflow/names
+Accept: application/json
+
+###
+
+GET {{Brimborium.MessageFlow.APISample_HostAddress}}/api/messageflow/running/hack/graph
+Accept: application/json
+
+###

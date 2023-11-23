@@ -14,6 +14,7 @@ global using global::Microsoft.Extensions.Hosting;
 
 global using global::System.Collections.Concurrent;
 global using global::System.Collections.Immutable;
+global using global::System.ComponentModel;
 global using global::System.Diagnostics.CodeAnalysis;
 global using global::System.Runtime.CompilerServices;
 global using global::System.Text;
