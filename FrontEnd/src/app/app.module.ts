@@ -6,6 +6,7 @@ import { AppComponent } from './app.component';
 import { HomeComponent } from './page/home/home.component';
 import { MonitorComponent } from './page/monitor/monitor.component';
 import { BrimboriumMessageFlowModule } from 'projects/brimborium-message-flow/src/public-api';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 @NgModule({
   declarations: [
@@ -16,7 +17,8 @@ import { BrimboriumMessageFlowModule } from 'projects/brimborium-message-flow/sr
   imports: [
     BrowserModule,
     AppRoutingModule,
-    BrimboriumMessageFlowModule
+    BrimboriumMessageFlowModule,
+    BrowserAnimationsModule
   ],
   providers: [],
   bootstrap: [AppComponent]
