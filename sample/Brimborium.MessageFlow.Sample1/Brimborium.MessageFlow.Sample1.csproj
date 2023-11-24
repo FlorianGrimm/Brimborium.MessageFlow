@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -6,8 +6,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+	<PropertyGroup>
+		<SpaRoot>ClientApp\</SpaRoot>
+		<SpaClientUrl>http://localhost:4200</SpaClientUrl>
+		<SpaLaunchCommandGone>npm start</SpaLaunchCommandGone>
+	</PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="AspNetCore.SpaYarp" />
+    <PackageReference Include="Yarp.ReverseProxy" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Brimborium.LogicClock\Brimborium.LogicClock\Brimborium.LogicClock.csproj" />
+    <ProjectReference Include="..\..\..\Brimborium.ReturnValue\Brimborium.ReturnValue\Brimborium.ReturnValue.csproj" />
+    <ProjectReference Include="..\..\src\Brimborium.MessageFlow.APIServer\Brimborium.MessageFlow.APIServer.csproj" />
+    <ProjectReference Include="..\..\src\Brimborium.MessageFlow.Aspire\Brimborium.MessageFlow.Aspire.ServiceDefaults\Brimborium.MessageFlow.Aspire.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\src\Brimborium.MessageFlow\Brimborium.MessageFlow.csproj" />
   </ItemGroup>
 
 </Project>

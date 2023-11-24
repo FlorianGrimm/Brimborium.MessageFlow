@@ -1,5 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSpaYarp();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -15,6 +17,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthorization();
+//app.UseAuthorization();
+
+app.UseSpaYarp();
+app.MapFallbackToFile("index.html");
 
 app.Run();
