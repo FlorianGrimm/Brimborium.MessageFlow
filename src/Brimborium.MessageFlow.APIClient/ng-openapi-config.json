@@ -1,0 +1,9 @@
+{
+  "$schema": "./ng-openapi-templates/ng-openapi-gen-schema.json",
+  "input": "C:/github.com/FlorianGrimm/Brimborium.MessageFlow/src/Brimborium.MessageFlow.APIServer/OpenApi.json",
+  "output": "./src/api",
+  "ignoreUnusedModels": false,
+  "skipJsonSuffix": true,
+  "templates": "./ng-openapi/templates",
+  "donotModifyTypeNames": true
+}
