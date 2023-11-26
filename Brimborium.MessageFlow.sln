@@ -44,6 +44,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "99aspire", "99aspire", "{97
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FrontEnd", "FrontEnd\FrontEnd.csproj", "{3214E01D-32E2-4C2B-915F-6E39DCCB0405}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.OpenApi.Generator", "..\Brimborium.OpenApi\Brimborium.OpenApi.Generator\Brimborium.OpenApi.Generator.csproj", "{AFB93C3E-2228-43C7-B856-9CDEA83777E5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -94,6 +96,10 @@ Global
 		{3214E01D-32E2-4C2B-915F-6E39DCCB0405}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3214E01D-32E2-4C2B-915F-6E39DCCB0405}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3214E01D-32E2-4C2B-915F-6E39DCCB0405}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -110,6 +116,7 @@ Global
 		{FD0EF231-098B-4636-9E72-A0CC3466893F} = {972C4753-2AD3-4457-9AEB-51BC0E8F1733}
 		{2E4F2E5B-787A-44D9-BD00-D8FFC01D7095} = {972C4753-2AD3-4457-9AEB-51BC0E8F1733}
 		{3214E01D-32E2-4C2B-915F-6E39DCCB0405} = {25E8A944-15B3-4CFB-8C45-E74304C27882}
+		{AFB93C3E-2228-43C7-B856-9CDEA83777E5} = {0749164E-1B3C-4C7D-B7DE-30E609805123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0E766338-36C5-495A-A872-7638B6F745A9}

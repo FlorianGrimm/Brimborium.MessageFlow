@@ -13,7 +13,10 @@ public static class WebApplicationExtensions {
                 return result;
             })
             .WithName("GetListMessageFlowName")
-            .WithOpenApi();
+            .WithOpenApi((openApiOperation) => {
+                openApiOperation.Description = "Get a List of MessageFlow Names";
+                return openApiOperation;
+            });
 
         group.MapGet(
             "/running/{name}/graph",

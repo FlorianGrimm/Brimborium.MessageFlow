@@ -3,8 +3,11 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "Brimborium-MessageFlow": [
+      "Brimborium-MessageFlow-ForLater": [
         "dist/brimborium-message-flow"
+      ],
+      "Brimborium-MessageFlow": [
+        "projects/brimborium-message-flow/src/public-api.ts"
       ]
     },
     "baseUrl": "./",

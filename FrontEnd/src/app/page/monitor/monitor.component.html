@@ -1,10 +1,12 @@
-<p>monitor works!</p>
-<div>
-  <div>
-  <lib-diagram-pane></lib-diagram-pane>
-  </div><div>
-  x
-  </div><div>
-  <lib-property-pane></lib-property-pane>
+<div class="splitterContainer" style="display:flex; background-color: aliceblue;">
+  <div class="leftpane" >
+    <lib-diagram-pane></lib-diagram-pane>
+  </div>
+  <div class="splitter"
+  cdkDragLockAxis="x"  cdkDrag (cdkDragEnded)="splitterEnded($event)">
+  </div>
+  <div class="rightpane" [ngStyle]="{'width':rightWidthPx}">
+    <lib-property-pane></lib-property-pane>
   </div>
 </div>
+https://luncheon.github.io/flex-splitter-directive/

@@ -4,6 +4,9 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<InvariantGlobalization>true</InvariantGlobalization>
+
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,6 +15,7 @@
 	</ItemGroup>
 	
 	<ItemGroup>
+		<ProjectReference Include="..\..\..\Brimborium.OpenApi\Brimborium.OpenApi.Generator\Brimborium.OpenApi.Generator.csproj" />
 		<ProjectReference Include="..\Brimborium.MessageFlow.Aspire\Brimborium.MessageFlow.Aspire.ServiceDefaults\Brimborium.MessageFlow.Aspire.ServiceDefaults.csproj" />
 		<ProjectReference Include="..\Brimborium.MessageFlow\Brimborium.MessageFlow.csproj" />
 		<ProjectReference Include="..\Brimborium.MessageFlow.APIServer\Brimborium.MessageFlow.APIServer.csproj" />

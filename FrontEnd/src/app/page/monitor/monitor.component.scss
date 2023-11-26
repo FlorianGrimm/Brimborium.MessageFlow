@@ -1,0 +1,21 @@
+.splitterContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+
+  .leftpane {
+    background-color: red;
+    flex:1 1 auto;
+  }
+
+  .splitter {
+    background-color: gray;
+    width: 4px;
+    border: 0px 1px 0px 1px solid black;
+  }
+
+  .rightpane {
+    background-color: yellowgreen;
+  }
+
+}

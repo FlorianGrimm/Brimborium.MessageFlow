@@ -1,0 +1,146 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Brimborium.MessageFlow.API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/messageflow/names": {
+      "get": {
+        "tags": [
+          "Brimborium.MessageFlow.APISample"
+        ],
+        "operationId": "GetListMessageFlowName",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/messageflow/running/{name}/graph": {
+      "get": {
+        "tags": [
+          "Brimborium.MessageFlow.APISample"
+        ],
+        "operationId": "GetMessageFlowGraph",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageFlowGraph"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MessageFlowGraph": {
+        "type": "object",
+        "properties": {
+          "listNode": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageGraphNode"
+            },
+            "nullable": true
+          },
+          "listConnection": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageGraphConnection"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageGraphConnection": {
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceNodeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sinkId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sinkNodeId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageGraphNode": {
+        "type": "object",
+        "properties": {
+          "nameId": {
+            "type": "string",
+            "nullable": true
+          },
+          "listOutgoingSourceId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "listIncomingSinkId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "listChildren": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "order": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

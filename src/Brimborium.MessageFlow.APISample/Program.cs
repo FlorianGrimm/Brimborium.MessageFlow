@@ -1,141 +1,69 @@
+#pragma warning disable IDE0058 // Expression value is never used
 
+using Brimborium.OpenApi.Generator.SwaggerUtils;
 
-var builder = WebApplication.CreateBuilder(args);
-Microsoft.Extensions.Hosting.Extensions.AddServiceDefaults(builder);
-////builder.Services.AddServiceDefaults();
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddMessageFlow();
-builder.Services.AddHostedService<EngineBackgroundService>();
+namespace Brimborium.MessageFlow.APISample;
 
-var app = builder.Build();
+public class Program {
+    public static void Main(string[] args) {
+        var builder = WebApplication.CreateBuilder(args);
+        builder.AddServiceDefaults();
+        ////builder.Services.AddServiceDefaults();
+        // Add services to the container.
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen((swaggerGenOptions) => {
+            //swaggerGenOptions.
+            swaggerGenOptions.SwaggerDoc("v1", new OpenApiInfo {
+                Version = "v1",
+                Title = "Brimborium.MessageFlow.API",
+                //Description = "An ASP.NET Core Web API for managing ToDo items",
+                //TermsOfService = new Uri("https://example.com/terms"),
+                //Contact = new OpenApiContact {
+                //    Name = "Example Contact",
+                //    Url = new Uri("https://example.com/contact")
+                //},
+                //License = new OpenApiLicense {
+                //    Name = "Example License",
+                //    Url = new Uri("https://example.com/license")
+                //}
+            });
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) {
-    app.UseSwagger((swaggerOptions) => {
-
-    });
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-app.MapMessageFlow();
-
-
-app.Run();
-
-class EngineBackgroundService : IHostedService {
-    private readonly IMessageFlowAPIService _MessageFlowAPIService;
-    private readonly IHostApplicationLifetime _HostApplicationLifetime;
-    private readonly ILogger<EngineBackgroundService> _Logger;
-    private readonly MessageEngine _Engine;
-
-    public EngineBackgroundService(
-        IMessageFlowAPIService messageFlowAPIService,
-        IHostApplicationLifetime hostApplicationLifetime,
-        ILogger<EngineBackgroundService> logger
-        ) {
-        this._MessageFlowAPIService = messageFlowAPIService;
-        this._HostApplicationLifetime = hostApplicationLifetime;
-        this._Logger = logger;
-        var engine = CreateEngine(logger);
-        this._Engine = engine;
-        messageFlowAPIService.Register(engine.NameId.Name, engine);
-        hostApplicationLifetime.ApplicationStopping.Register(() => {
-            if (this._Engine is not null) {
-                this._Engine.HandleApplicationStopping();
+            string xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            foreach (var filename in new string[] { xmlFilename, "Brimborium.MessageFlow.xml" }) {
+                var xmlFullname = Path.Combine(AppContext.BaseDirectory, filename);
+                if (System.IO.File.Exists(xmlFullname)) {
+                    swaggerGenOptions.IncludeXmlComments(xmlFullname);
+                }
             }
+
         });
-    }
-
-
-    private static MessageEngine CreateEngine(ILogger<EngineBackgroundService> logger) {
-        var engine = new MessageEngine("hack", logger);
-        var producer = new Producer("Producer", logger);
-        var doOne = new DoOne("DoOne", logger);
-        engine.ConnectMessage(engine.GlobalOutgoingSource, producer.IncomingSink);
-        engine.ConnectData(producer.OutgoingSource, doOne.IncomingSink);
-        engine.ConnectMessage(doOne.OutgoingSource, engine.GlobalIncomingSink);
-        return engine;
-    }
-
-    public async Task StartAsync(CancellationToken cancellationToken) {
-        await this._Engine.StartAsync(cancellationToken);
-    }
-
-    public async Task StopAsync(CancellationToken cancellationToken) {
-        await this._Engine.SendFlowEnd(null, cancellationToken);
-        await this._Engine.ExecuteAsync(cancellationToken);
-        await this._Engine.TaskExecute;
-    }
-
-    private class Producer : MessageProcessorTransform<RootMessage, MessageData<int>> {
-        private Task _TaskTimer = Task.CompletedTask;
-        private CancellationTokenSource? _TimerCTS;
-
-        public Producer(NodeIdentifier nameId, ILogger logger) : base(nameId, logger) {
+        builder.Services.AddMessageFlow();
+        SwaggerDocOptions swaggerDocOptions = new() {
+            DocumentName = "v1",
+            OutputPath = @"..\Brimborium.MessageFlow.APIServer\OpenApi.json"
+        };
+        if (Brimborium.OpenApi.Generator.SwaggerUtils.SwaggerGenerator.Generating(builder, swaggerDocOptions)) {
+        } else {
+            builder.Services.AddHostedService<EngineBackgroundService>();
         }
 
-        protected override ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken) {
-            if (message is MessageFlowStart) {
-                if (this._TaskTimer.IsCompleted) {
-                    this._TaskTimer = this.StartTimerAsync(cancellationToken);
-                }
-            }
-            if (message is MessageFlowEnd) {
-                this._TimerCTS?.Cancel();
-            }
-            return ValueTask.CompletedTask;
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment()) {
+            app.UseSwagger((swaggerOptions) => {
+
+            });
+            app.UseSwaggerUI();
         }
 
-        private async Task StartTimerAsync(CancellationToken cancellationToken) {
-            this._TimerCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var stoppingToken = this._TimerCTS.Token;
-            int loop = 1;
-            while (!stoppingToken.IsCancellationRequested) { 
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-                var message = MessageData<int>.Create(loop++);
-                await this.OutgoingSource.SendDataAsync(message, stoppingToken);
-            }
-            Interlocked.Exchange(ref this._TimerCTS, null)?.Dispose();
-        }
+        app.UseHttpsRedirection();
 
-        protected override ValueTask HandleDataAsync(RootMessage message, CancellationToken cancellationToken)
-            => this.HandleMessageAsync(message, cancellationToken);
+        app.MapMessageFlow();
 
-        protected override bool Dispose(bool disposing) {
-            if (base.Dispose(disposing)) {
-                var timerCTS = Interlocked.Exchange(ref this._TimerCTS, null);
-                if (this._TaskTimer.IsCompleted) {
-                    if (timerCTS is not null) {
-                        timerCTS.Dispose();
-                    }
-                } else {
-                    if (timerCTS is not null) {
-                        timerCTS.Cancel();
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        }
-    }
+        if (Brimborium.OpenApi.Generator.SwaggerUtils.SwaggerGenerator.Generate(app, swaggerDocOptions)) { return; }
 
-    private class DoOne : MessageProcessorTransform<MessageData<int>, MessageData<int>> {
-        public DoOne(NodeIdentifier nameId, ILogger logger) : base(nameId, logger) {
-        }
-
-        protected override async ValueTask HandleDataAsync(MessageData<int> message, CancellationToken cancellationToken) {
-            var messageNext = MessageData<int>.Create(message.Data + 1);
-            await this.OutgoingSource.SendDataAsync(messageNext, cancellationToken);
-        }
-
-        protected override async ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken) {
-            await this.OutgoingSource.SendMessageAsync(message, cancellationToken);
-        }
+        app.Run();
     }
 }

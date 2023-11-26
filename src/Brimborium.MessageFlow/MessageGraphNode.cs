@@ -1,5 +1,10 @@
 ﻿namespace Brimborium.MessageFlow;
 
+/// <summary>
+/// The MessageFlow Graph
+/// </summary>
+/// <param name="ListNode">the nodes</param>
+/// <param name="ListConnection">the connections</param>
 public record MessageFlowGraph(
     List<MessageGraphNode> ListNode,
     List<MessageGraphConnection> ListConnection
