@@ -7,30 +7,30 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import {DragDropModule} from '@angular/cdk/drag-drop';
-
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './page/home/home.component';
 import { MonitorComponent } from './page/monitor/monitor.component';
-import { BrimboriumMessageFlowModule } from 'projects/brimborium-message-flow/src/public-api';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-
-//C:\github.com\FlorianGrimm\Brimborium.MessageFlow\FrontEnd\projects\brimborium-message-flow\src\lib\
-//import { API_BASE_URL } from 'projects/brimborium-message-flow/src/lib/brimborium-message-flow-client.ts';
-//import { API_BASE_URL } from '../';
-//import { API_BASE_URL } from 'Brimborium-MessageFlow';
+import { MessageFlowApiModule } from './message-flow-api/message-flow-api.module';
+import { DiagramPaneComponent } from './message-flow/diagram-pane/diagram-pane.component';
+import { PropertyPaneComponent } from './message-flow/property-pane/property-pane.component';
+import { HttpClientModule } from '@angular/common/http';
 
 @NgModule({
   declarations: [
     AppComponent,
     HomeComponent,
-    MonitorComponent
+    MonitorComponent,
+    DiagramPaneComponent,
+    PropertyPaneComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
-    BrimboriumMessageFlowModule,
     BrowserAnimationsModule,
+    HttpClientModule,
+    MessageFlowApiModule.forRoot({ rootUrl: '' }),
     MatDividerModule,
     MatIconModule,
     MatMenuModule,

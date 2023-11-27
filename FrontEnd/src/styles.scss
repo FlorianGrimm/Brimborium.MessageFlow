@@ -2,3 +2,16 @@
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+app-root {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background-color: cadetblue;
+}
+mat-sidenav-container{
+  width: 100%;
+  height: 100%;
+  display: block;
+  background-color: bisque;
+}

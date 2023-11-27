@@ -8,7 +8,8 @@ public class Program {
     public static void Main(string[] args) {
         var builder = WebApplication.CreateBuilder(args);
         builder.AddServiceDefaults();
-        ////builder.Services.AddServiceDefaults();
+        
+        builder.Services.AddSpaYarp();
         // Add services to the container.
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -63,6 +64,9 @@ public class Program {
         app.MapMessageFlow();
 
         if (Brimborium.OpenApi.Generator.SwaggerUtils.SwaggerGenerator.Generate(app, swaggerDocOptions)) { return; }
+        
+        app.UseSpaYarp();
+        app.MapFallbackToFile("index.html");
 
         app.Run();
     }

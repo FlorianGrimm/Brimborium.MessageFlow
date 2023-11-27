@@ -1,0 +1,49 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+
+import { MonitorComponent } from './monitor.component';
+import { DiagramPaneComponent } from 'src/app/message-flow/diagram-pane/diagram-pane.component';
+import { PropertyPaneComponent } from 'src/app/message-flow/property-pane/property-pane.component';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MessageFlowApiModule } from 'src/app/message-flow-api/message-flow-api.module';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatListModule } from '@angular/material/list';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { DragDropModule } from '@angular/cdk/drag-drop';
+
+describe('MonitorComponent', () => {
+  let component: MonitorComponent;
+  let fixture: ComponentFixture<MonitorComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports:[
+        NoopAnimationsModule,
+        MatDividerModule,
+        MatIconModule,
+        MatMenuModule,
+        MatListModule,
+        MatSidenavModule,
+        MatToolbarModule,
+        DragDropModule
+      ],
+      declarations: [
+        MonitorComponent,
+        DiagramPaneComponent,
+        PropertyPaneComponent,
+        MessageFlowApiModule.forRoot({ rootUrl: '' }),
+      ]
+    })
+    .compileComponents();
+
+    fixture = TestBed.createComponent(MonitorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+});

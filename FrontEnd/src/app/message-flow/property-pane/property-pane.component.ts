@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 
 @Component({
-  selector: 'lib-property-pane',
+  selector: 'app-property-pane',
   templateUrl: './property-pane.component.html',
-  styleUrls: ['./property-pane.component.css']
+  styleUrls: ['./property-pane.component.scss']
 })
 export class PropertyPaneComponent {
 

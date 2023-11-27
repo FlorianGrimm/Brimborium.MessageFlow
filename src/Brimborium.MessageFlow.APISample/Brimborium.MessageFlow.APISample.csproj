@@ -9,7 +9,14 @@
 		<NoWarn>$(NoWarn);1591</NoWarn>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<SpaRoot>ClientApp\</SpaRoot>
+		<SpaClientUrl>http://localhost:4200</SpaClientUrl>
+		<SpaLaunchCommandGone>npm start</SpaLaunchCommandGone>
+	</PropertyGroup>	
+
 	<ItemGroup>
+		<PackageReference Include="AspNetCore.SpaYarp" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
 		<PackageReference Include="Swashbuckle.AspNetCore" />
 	</ItemGroup>

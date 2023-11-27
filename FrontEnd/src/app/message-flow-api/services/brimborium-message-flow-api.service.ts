@@ -14,7 +14,7 @@ import { MessageFlowGraph } from '../models/message-flow-graph';
 @Injectable({
   providedIn: 'root',
 })
-export class Brimborium_MessageFlow_APISampleService extends BaseService {
+export class BrimboriumMessageFlowApiService extends BaseService {
   constructor(
     config: ApiConfiguration,
     http: HttpClient
@@ -36,7 +36,7 @@ export class Brimborium_MessageFlow_APISampleService extends BaseService {
   getListMessageFlowName$Response(params?: {
   }): Observable<HttpResponse<Array<string>>> {
 
-    const rb = new RequestBuilder(this.rootUrl, Brimborium_MessageFlow_APISampleService.GetListMessageFlowNamePath, 'get');
+    const rb = new RequestBuilder(this.rootUrl, BrimboriumMessageFlowApiService.GetListMessageFlowNamePath, 'get');
     if (params) {
     }
 
@@ -77,7 +77,7 @@ export class Brimborium_MessageFlow_APISampleService extends BaseService {
     name: string;
   }): Observable<HttpResponse<MessageFlowGraph>> {
 
-    const rb = new RequestBuilder(this.rootUrl, Brimborium_MessageFlow_APISampleService.GetMessageFlowGraphPath, 'get');
+    const rb = new RequestBuilder(this.rootUrl, BrimboriumMessageFlowApiService.GetMessageFlowGraphPath, 'get');
     if (params) {
       rb.path('name', params.name, {});
     }

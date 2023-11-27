@@ -1,12 +1,16 @@
-<div class="splitterContainer" style="display:flex; background-color: aliceblue;">
-  <div class="leftpane" >
-    <lib-diagram-pane></lib-diagram-pane>
+<div class="splitterBottomContainer">
+  <div class="splitterTopContainer topPane">
+    <div class="leftpane" >
+      <app-diagram-pane></app-diagram-pane>
+    </div>
+    <div class="splitterH"
+      cdkDragLockAxis="x" cdkDrag (cdkDragEnded)="splitterTopRightEnded($event)">
+    </div>
+    <div class="rightpane" [ngStyle]="{'width': (topRightWidthPx$|async)}">
+      <app-property-pane></app-property-pane>
+    </div>
   </div>
-  <div class="splitter"
-  cdkDragLockAxis="x"  cdkDrag (cdkDragEnded)="splitterEnded($event)">
-  </div>
-  <div class="rightpane" [ngStyle]="{'width':rightWidthPx}">
-    <lib-property-pane></lib-property-pane>
-  </div>
+  <div class="splitterV"
+    cdkDragLockAxis="y" cdkDrag (cdkDragEnded)="splitterBottomEnded($event)"></div>
+  <div class="bottomPane" [ngStyle]="{'height': (bottomHeightPx$|async)}"></div>
 </div>
-https://luncheon.github.io/flex-splitter-directive/

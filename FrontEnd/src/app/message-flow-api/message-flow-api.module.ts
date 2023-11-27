@@ -4,7 +4,7 @@ import { NgModule, ModuleWithProviders, SkipSelf, Optional } from '@angular/core
 import { HttpClient } from '@angular/common/http';
 import { ApiConfiguration, ApiConfigurationParams } from './api-configuration';
 
-import { Brimborium_MessageFlow_APISampleService } from './services/Brimborium/MessageFlow/brimborium-message-flow-api-sample.service';
+import { BrimboriumMessageFlowApiService } from './services/brimborium-message-flow-api.service';
 
 /**
  * Module that provides all services and configuration.
@@ -14,14 +14,14 @@ import { Brimborium_MessageFlow_APISampleService } from './services/Brimborium/M
   exports: [],
   declarations: [],
   providers: [
-    Brimborium_MessageFlow_APISampleService,
+    BrimboriumMessageFlowApiService,
     ApiConfiguration
   ],
 })
-export class ApiModule {
-  static forRoot(params: ApiConfigurationParams): ModuleWithProviders<ApiModule> {
+export class MessageFlowApiModule {
+  static forRoot(params: ApiConfigurationParams): ModuleWithProviders<MessageFlowApiModule> {
     return {
-      ngModule: ApiModule,
+      ngModule: MessageFlowApiModule,
       providers: [
         {
           provide: ApiConfiguration,
@@ -31,8 +31,8 @@ export class ApiModule {
     }
   }
 
-  constructor( 
-    @Optional() @SkipSelf() parentModule: ApiModule,
+  constructor(
+    @Optional() @SkipSelf() parentModule: MessageFlowApiModule,
     @Optional() http: HttpClient
   ) {
     if (parentModule) {

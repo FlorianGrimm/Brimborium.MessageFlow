@@ -6,12 +6,10 @@ describe('DiagramPaneComponent', () => {
   let component: DiagramPaneComponent;
   let fixture: ComponentFixture<DiagramPaneComponent>;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      declarations: [ DiagramPaneComponent ]
-    })
-    .compileComponents();
-
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      declarations: [DiagramPaneComponent]
+    });
     fixture = TestBed.createComponent(DiagramPaneComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
