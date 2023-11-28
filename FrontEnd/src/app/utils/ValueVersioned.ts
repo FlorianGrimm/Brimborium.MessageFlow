@@ -18,6 +18,18 @@ export type ValueVersioned<T> = {
   logicalTimestamp: number;
 };
 
+export type RequestVersioned<T> = {
+  /**
+   * the value
+   */
+  value: T;
+  /**
+   * the logicalTimestamp increases if the value is changed because a request completes.
+   * the logicalTimestamp is set to max(this.logicalTimestamp, request.logicalTimestamp)
+   */
+  logicalTimestamp: number;
+};
+
 export type ReturnValue<T, F = any, Rq = any> =
   ReturnOkValue<T, Rq>
   | ReturnFailedValue<F, Rq>;
@@ -39,7 +51,7 @@ export type ReturnFailedValue<F = any, Rq = any> = {
 export function toValueVersioned<T=any>(
   value: T | ValueVersioned<T>,
   valueVersion: number = 0,
-  logicalVersion: number = 0
+  logicalTimestamp: number = 0
 ): ValueVersioned<T> {
   if (value && typeof (value) === "object" && Object.hasOwn(value, "logicalTimestamp")) {
     return value as ValueVersioned<T>;
@@ -47,7 +59,7 @@ export function toValueVersioned<T=any>(
   return {
     value: value as T,
     valueVersion: valueVersion,
-    logicalTimestamp: logicalVersion
+    logicalTimestamp: logicalTimestamp
   };
 }
 

@@ -1,7 +1,21 @@
 <div class="splitterBottomContainer">
+  <div>
+    <mat-form-field>
+      <mat-label>Favorite food</mat-label>
+      <mat-select>
+
+      </mat-select>
+    </mat-form-field>
+    <label>
+      <select>
+
+        <option [value]="">xxx</option>
+      </select>
+    </label>
+  </div>
   <div class="splitterTopContainer topPane">
-    <div class="leftpane" >
-      <app-diagram-pane></app-diagram-pane>
+    <div class="leftpane" #leftpane>
+      <app-diagram-pane [hostSize]="leftPaneSize$|async"></app-diagram-pane>
     </div>
     <div class="splitterH"
       cdkDragLockAxis="x" cdkDrag (cdkDragEnded)="splitterTopRightEnded($event)">

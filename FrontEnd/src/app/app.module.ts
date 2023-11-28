@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing.module';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatFormFieldModule  } from '@angular/material/form-field';
+import { MatSelectModule  } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatListModule } from '@angular/material/list';
@@ -35,8 +37,10 @@ import { HttpClientModule } from '@angular/common/http';
     MatIconModule,
     MatMenuModule,
     MatListModule,
+    MatSelectModule,
     MatSidenavModule,
     MatToolbarModule,
+    MatFormFieldModule,
     DragDropModule
   ],
   providers: [],
