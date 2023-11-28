@@ -1,27 +1,24 @@
 <div class="splitterBottomContainer">
   <div>
     <mat-form-field>
-      <mat-label>Favorite food</mat-label>
-      <mat-select>
-
+      <mat-label>MessageFlow</mat-label>
+      <mat-select [value]="currentMessageFlowName$|async" (valueChange)="currentMessageFlowName$.next($event)">
+        <mat-option [value]="null">-</mat-option>
+        @for (name of listMessageFlowName$|async; track name) {
+          <mat-option [value]="name">{{name}}</mat-option>
+        }
       </mat-select>
     </mat-form-field>
-    <label>
-      <select>
-
-        <option [value]="">xxx</option>
-      </select>
-    </label>
   </div>
   <div class="splitterTopContainer topPane">
     <div class="leftpane" #leftpane>
-      <app-diagram-pane [hostSize]="leftPaneSize$|async"></app-diagram-pane>
+      <app-diagram-pane [hostSize]="leftPaneSize$|async" [graph]="currentMessageFlow$|async" (nodeSelected)="nodeSelectedDiagramPane($event)"></app-diagram-pane>
     </div>
     <div class="splitterH"
       cdkDragLockAxis="x" cdkDrag (cdkDragEnded)="splitterTopRightEnded($event)">
     </div>
     <div class="rightpane" [ngStyle]="{'width': (topRightWidthPx$|async)}">
-      <app-property-pane></app-property-pane>
+      <app-property-pane [currentMessageFlow]="currentMessageFlow$|async" [currentMessageFlowNode]="currentMessageFlowNode$|async" ></app-property-pane>
     </div>
   </div>
   <div class="splitterV"

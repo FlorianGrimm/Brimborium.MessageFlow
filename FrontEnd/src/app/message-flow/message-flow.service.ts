@@ -3,6 +3,8 @@ import { BrimboriumMessageFlowApiService } from '../message-flow-api/services';
 import { Subscription, BehaviorSubject, connectable, filter, switchMap, map, merge, mergeMap, combineLatest } from 'rxjs'
 import { PropertySubject } from 'src/app/utils/PropertySubject';
 import { RequestVersioned, ValueVersioned, mergeNextValueVersioned, mergeValueVersioned, toReturnFailedValue, toReturnOkValue, toValueVersioned } from 'src/app/utils/ValueVersioned';
+import { MessageFlowGraph } from '../message-flow-api/models';
+import { emptyMessageFlowGraph } from '../message-flow-api/models/message-flow-graph';
 @Injectable({
   providedIn: 'root'
 })
@@ -12,7 +14,7 @@ export class MessageFlowService implements OnDestroy {
   public listMessageFlowName$ = new PropertySubject<string[]>([]);
 
   public triggerLoadMessageFlow$ = new PropertySubject<string[] | null>(null);
-  public mapMessageFlow$ = new PropertySubject<Map<string, ValueVersioned<any>>>(new Map());
+  public mapMessageFlow$ = new PropertySubject<Map<string, ValueVersioned<MessageFlowGraph>>>(new Map());
 
   constructor(
     public messageFlowApiService: BrimboriumMessageFlowApiService
@@ -75,7 +77,7 @@ export class MessageFlowService implements OnDestroy {
             if (value.mode == "ok") {
               const name = value.request?.value;
               if (!name) { continue; }
-              const currentItem = nextValue.get(name) || toValueVersioned({});
+              const currentItem = nextValue.get(name) || toValueVersioned<MessageFlowGraph>(emptyMessageFlowGraph());
               nextValue.set(name, mergeValueVersioned(currentItem, value.value, 0, value.logicalTimestamp));
               if (logicalTimestamp < value.logicalTimestamp) {
                 logicalTimestamp = value.logicalTimestamp;
@@ -85,7 +87,6 @@ export class MessageFlowService implements OnDestroy {
           if (logicalTimestamp > 0) {
             this.mapMessageFlow$.next(mergeValueVersioned(currentVV, nextValue, 0, logicalTimestamp));
           }
-
         }
       }));
   }

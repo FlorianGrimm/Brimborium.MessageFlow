@@ -26,4 +26,21 @@
     fill:blue;
     stroke:blue;
   }
+  text{
+    white-space: pre;
+    color: black;
+    fill: black;
+    stroke: black;
+    stroke-width: 0;
+    display: block;
+    font-family: Arial, sans-serif;
+    font-weight: 400;
+    font-size: 11px;
+    // height: auto;
+    // width: auto;
+    // line-height: 12.8px;
+    // transform-origin: 0px 0px;
+    // text-wrap: nowrap;
+    // white-space-collapse: preserve;
+  }
 }

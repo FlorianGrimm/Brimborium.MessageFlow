@@ -1,11 +1,12 @@
 import { CdkDragEnd } from '@angular/cdk/drag-drop';
 import { Component, ElementRef, OnInit, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
-import { Subscription, BehaviorSubject, map, tap, combineLatest, merge, debounceTime, filter, switchMap } from 'rxjs';
+import { Subscription, BehaviorSubject, map, tap, combineLatest, merge, debounceTime, filter, switchMap, distinctUntilChanged } from 'rxjs';
 import { CdkDrag } from '@angular/cdk/drag-drop';
 import { WindowSizeService } from 'src/app/utils/window-size.service';
 import { PropertySubject } from 'src/app/utils/PropertySubject';
 import { toValueVersioned } from 'src/app/utils/ValueVersioned';
 import { MessageFlowService } from 'src/app/message-flow/message-flow.service';
+import { MessageFlowGraph, MessageGraphNode } from 'src/app/message-flow-api/models';
 
 @Component({
   selector: 'app-monitor',
@@ -22,13 +23,11 @@ export class MonitorComponent implements OnInit, OnDestroy {
   public bottomHeightPx$ = new BehaviorSubject<string>("100px");
 
   public leftPaneSize$ = new BehaviorSubject<{ width: number; height: number }>({ width: 0, height: 0 });
-/*
-   @for (food of currentMessageFlowName; track food) {
-          <mat-option [value]="food.value">{{food.viewValue}}</mat-option>
-        }
-*/
-  public currentMessageFlowName:string|null=null;
-  public listMessageFlowName = new BehaviorSubject<string[]>([]);
+
+  public listMessageFlowName$ = new BehaviorSubject<string[]>([]);
+  public currentMessageFlowName$ = new BehaviorSubject<string | null>(null);
+  public currentMessageFlow$ = new PropertySubject<MessageFlowGraph | null>(null);
+  public currentMessageFlowNode$ = new BehaviorSubject<MessageGraphNode | null>(null);
 
   @ViewChild('leftpane') leftpaneRef: ElementRef | null = null;
 
@@ -60,13 +59,48 @@ export class MonitorComponent implements OnInit, OnDestroy {
   }
   ngOnInit(): void {
     this.subscription.add(
-      this.messageFlowService.mapMessageFlow$.subscribe({
-        next:(mapMessageFlowVV)=>{
+      this.messageFlowService.mapMessageFlow$.pipe(
+        map((mapMessageFlowVV) => {
           const keys = Array.from(mapMessageFlowVV.value.keys());
-
-        }
-      })
+          return keys;
+        })
+      ).subscribe(this.listMessageFlowName$)
     );
+    this.subscription.add(
+      combineLatest({
+        currentMessageFlowName: this.currentMessageFlowName$,
+        listMessageFlowName: this.listMessageFlowName$
+      })
+        .pipe(
+          filter(({ currentMessageFlowName, listMessageFlowName }) => !currentMessageFlowName && listMessageFlowName.length > 0)
+        ).subscribe({
+          next: ({ currentMessageFlowName, listMessageFlowName }) => {
+            this.currentMessageFlowName$.next(listMessageFlowName[0]);
+          }
+        })
+    );
+    this.subscription.add(
+      combineLatest({
+        currentMessageFlowName: this.currentMessageFlowName$,
+        mapMessageFlowVV: this.messageFlowService.mapMessageFlow$.pipe(
+          distinctUntilChanged((a, b) => a.valueVersion == b.valueVersion)
+        )
+      })
+        .pipe(
+          map(({ currentMessageFlowName, mapMessageFlowVV }) => {
+            // console.log("currentMessageFlowName", currentMessageFlowName);
+            // console.log("mapMessageFlowVV", mapMessageFlowVV);
+            if (currentMessageFlowName) {
+              const resultVV = mapMessageFlowVV.value.get(currentMessageFlowName);
+              if (resultVV) {
+                console.log("found", resultVV)
+                return resultVV;
+              }
+            }
+            // console.log("not found")
+            return toValueVersioned<MessageFlowGraph | null>(null);
+          })
+        ).subscribe(this.currentMessageFlow$));
     this.load();
   }
 
@@ -110,4 +144,9 @@ export class MonitorComponent implements OnInit, OnDestroy {
     this.bottomHeight$.next(nextValue);
     $event.source.reset();
   }
+
+  nodeSelectedDiagramPane(data: MessageGraphNode | undefined) {
+    this.currentMessageFlowNode$.next(data || null);
+  }
+
 }

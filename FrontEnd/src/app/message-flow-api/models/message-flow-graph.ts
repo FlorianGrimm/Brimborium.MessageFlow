@@ -7,3 +7,6 @@ export interface MessageFlowGraph {
   listNode: null | Array<MessageGraphNode>;
 }
 
+export function emptyMessageFlowGraph():MessageFlowGraph{
+  return {listConnection:[], listNode:[]};
+}
