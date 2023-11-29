@@ -40,7 +40,7 @@ public sealed class MessageConnection<T>(
     : IMessageConnection
     , IMessageConnection<T>
     , IMessageConnectionInternal
-    where T : RootMessage {
+    where T : FlowMessage {
     private readonly IMessageOutgoingSource<T> _OutgoingSourceData = outgoingSourceData;
     private readonly IMessageIncomingSink<T> _IncomingSinkData = incomingSinkData;
 

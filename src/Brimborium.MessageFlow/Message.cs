@@ -15,7 +15,7 @@ namespace Brimborium.MessageFlow;
 //    FlowEnd = MessageAction.Flow | MessageAction.End | MessageAction.Disconnect | MessageAction.Propagate
 //}
 
-public record class RootMessage(
+public record class FlowMessage(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt
@@ -32,7 +32,7 @@ public record class RootMessage(
 
 public static class RootMessageExtension { 
     public static T Normalize<T>(this T message, NodeIdentifier nameId) 
-        where T: RootMessage {
+        where T: FlowMessage {
         if (message.SourceId.Id == 0) {
             message = message with { SourceId = nameId };
         }
@@ -43,8 +43,8 @@ public static class RootMessageExtension {
     }
 }
 
-public readonly struct MessageLog(RootMessage rootMessage) {
-    private readonly RootMessage _RootMessage = rootMessage;
+public readonly struct MessageLog(FlowMessage rootMessage) {
+    private readonly FlowMessage _RootMessage = rootMessage;
 
     public string MessageType
         => Brimborium.MessageFlow.Internal.TypeNameHelper.GetTypeDisplayNameCached(this._RootMessage.GetType(), fullName: false);
@@ -79,7 +79,7 @@ public sealed record class MessageFlowStart(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
 
     public static MessageFlowStart CreateStart(NodeIdentifier? nameId)
         => new(MessageIdentifier.CreateGroupMessageIdentifier(), nameId ?? NodeIdentifier.Empty, DateTimeOffset.UtcNow);
@@ -95,7 +95,7 @@ public sealed record class MessageFlowEnd(
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt,
     Exception? Error
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
 
     //public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.End;
 }
@@ -104,7 +104,7 @@ public record class MessageData(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
     //public override MessageAction GetMessageAction() => MessageAction.Data;
 }
 
@@ -124,7 +124,7 @@ public record class MessageGroupStart(
     MessageIdentifier MessageId,
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
 
     public static MessageGroupStart CreateStart(NodeIdentifier? nameId)
         => new(
@@ -163,6 +163,6 @@ public record class MessageGroupEnd(
     NodeIdentifier SourceId,
     DateTimeOffset CreatedAt,
     Exception? Error
-    ) : RootMessage(MessageId, SourceId, CreatedAt) {
+    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
     //public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Group | MessageAction.End;
 }

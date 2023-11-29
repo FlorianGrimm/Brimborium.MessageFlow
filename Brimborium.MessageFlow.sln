@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Directory.Packages.props = Directory.Packages.props
 		global.json = global.json
 		LICENSE = LICENSE
+		nuget.config = nuget.config
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -27,8 +28,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.LogicClock", "..\Brimborium.LogicClock\Brimborium.LogicClock\Brimborium.LogicClock.csproj", "{0799D00A-581F-4C6D-B26B-C851E61E58E4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.ReturnValue", "..\Brimborium.ReturnValue\Brimborium.ReturnValue\Brimborium.ReturnValue.csproj", "{5E3AE5DD-E1B3-4A58-BC09-3E73B94D95EA}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.ReturnValue.Test", "..\Brimborium.ReturnValue\Brimborium.ReturnValue.Test\Brimborium.ReturnValue.Test.csproj", "{065B294A-024B-44FC-BA49-8D194B9B00C8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.MessageFlow.APIServer", "src\Brimborium.MessageFlow.APIServer\Brimborium.MessageFlow.APIServer.csproj", "{83F35165-05A3-45F2-A4F4-FC4B0F8B6CE2}"
 EndProject
@@ -45,6 +44,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FrontEnd", "FrontEnd\FrontEnd.csproj", "{3214E01D-32E2-4C2B-915F-6E39DCCB0405}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.OpenApi.Generator", "..\Brimborium.OpenApi\Brimborium.OpenApi.Generator\Brimborium.OpenApi.Generator.csproj", "{AFB93C3E-2228-43C7-B856-9CDEA83777E5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.MessageFlow.RepositoryLocalFile", "src\Brimborium.MessageFlow.RepositoryLocalFile\Brimborium.MessageFlow.RepositoryLocalFile.csproj", "{E7054256-A69F-4DC5-8696-20E4D8DF5368}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brimborium.MessageFlow.RepositoryLocalFile.Test", "src\Brimborium.MessageFlow.RepositoryLocalFile.Test\Brimborium.MessageFlow.RepositoryLocalFile.Test.csproj", "{F05C305E-C798-445B-B219-A90B92698E6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,10 +71,6 @@ Global
 		{5E3AE5DD-E1B3-4A58-BC09-3E73B94D95EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5E3AE5DD-E1B3-4A58-BC09-3E73B94D95EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5E3AE5DD-E1B3-4A58-BC09-3E73B94D95EA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{065B294A-024B-44FC-BA49-8D194B9B00C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{065B294A-024B-44FC-BA49-8D194B9B00C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{065B294A-024B-44FC-BA49-8D194B9B00C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{065B294A-024B-44FC-BA49-8D194B9B00C8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{83F35165-05A3-45F2-A4F4-FC4B0F8B6CE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{83F35165-05A3-45F2-A4F4-FC4B0F8B6CE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83F35165-05A3-45F2-A4F4-FC4B0F8B6CE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -100,6 +99,14 @@ Global
 		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AFB93C3E-2228-43C7-B856-9CDEA83777E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7054256-A69F-4DC5-8696-20E4D8DF5368}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7054256-A69F-4DC5-8696-20E4D8DF5368}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7054256-A69F-4DC5-8696-20E4D8DF5368}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7054256-A69F-4DC5-8696-20E4D8DF5368}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F05C305E-C798-445B-B219-A90B92698E6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F05C305E-C798-445B-B219-A90B92698E6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F05C305E-C798-445B-B219-A90B92698E6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F05C305E-C798-445B-B219-A90B92698E6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -109,7 +116,6 @@ Global
 		{96601993-043F-482F-91EC-5C7705B76362} = {2FC7F01F-C0CF-45BE-8AE9-3D157F32C8F4}
 		{0799D00A-581F-4C6D-B26B-C851E61E58E4} = {0749164E-1B3C-4C7D-B7DE-30E609805123}
 		{5E3AE5DD-E1B3-4A58-BC09-3E73B94D95EA} = {0749164E-1B3C-4C7D-B7DE-30E609805123}
-		{065B294A-024B-44FC-BA49-8D194B9B00C8} = {0749164E-1B3C-4C7D-B7DE-30E609805123}
 		{83F35165-05A3-45F2-A4F4-FC4B0F8B6CE2} = {A670F015-4F6B-4136-9FD9-3BBB6897D879}
 		{9AE7E8A8-1A5F-4EE8-A1A0-EBD81AEF3C93} = {A670F015-4F6B-4136-9FD9-3BBB6897D879}
 		{C211A850-2EB7-43A6-A8F7-82537EEEE498} = {25E8A944-15B3-4CFB-8C45-E74304C27882}
@@ -117,6 +123,8 @@ Global
 		{2E4F2E5B-787A-44D9-BD00-D8FFC01D7095} = {972C4753-2AD3-4457-9AEB-51BC0E8F1733}
 		{3214E01D-32E2-4C2B-915F-6E39DCCB0405} = {25E8A944-15B3-4CFB-8C45-E74304C27882}
 		{AFB93C3E-2228-43C7-B856-9CDEA83777E5} = {0749164E-1B3C-4C7D-B7DE-30E609805123}
+		{E7054256-A69F-4DC5-8696-20E4D8DF5368} = {2FC7F01F-C0CF-45BE-8AE9-3D157F32C8F4}
+		{F05C305E-C798-445B-B219-A90B92698E6B} = {2FC7F01F-C0CF-45BE-8AE9-3D157F32C8F4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0E766338-36C5-495A-A872-7638B6F745A9}

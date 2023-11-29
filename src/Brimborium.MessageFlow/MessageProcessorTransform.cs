@@ -3,18 +3,18 @@ namespace Brimborium.MessageFlow;
 
 public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
     : MessageProcessor
-    where TIncomingSink : RootMessage
-    where TOutgoingSource : RootMessage {
+    where TIncomingSink : FlowMessage
+    where TOutgoingSource : FlowMessage {
 
-    protected Channel<RootMessage>? _Channel;
+    protected Channel<FlowMessage>? _Channel;
     protected IMessageIncomingSink<TIncomingSink>? _IncomingSink;
     protected IMessageOutgoingSource<TOutgoingSource>? _OutgoingSource;
 
     public MessageProcessorTransform(
         NodeIdentifier nameId,
-        ILogger logger
-    ) : base(nameId, logger) {
-        this._Channel = Channel.CreateUnbounded<RootMessage>();
+        IMessageFlowLogging messageFlowLogging
+    ) : base(nameId, messageFlowLogging) {
+        this._Channel = Channel.CreateUnbounded<FlowMessage>();
         this._IncomingSink = new MessageIncomingSink<TIncomingSink>(nameof(this.IncomingSink), this, this._Channel.Writer.WriteAsync);
         this._OutgoingSource = new MessageOutgoingSource<TOutgoingSource>(nameof(this.OutgoingSource), this);
     }
@@ -50,6 +50,8 @@ public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
                     reader = null;
                 }
             } else {
+                // TODO think of reader.Count
+                this._MessageFlowLogging.LogHandleMessage(this._NameId, message);
                 if (message is TIncomingSink incomingSink) {
                     await this.HandleDataAsync(incomingSink, cancellationToken);
                 } else {
@@ -60,10 +62,14 @@ public abstract class MessageProcessorTransform<TIncomingSink, TOutgoingSource>
                 }
             }
         }
-
     }
+    //this._Channel.Reader.ReadAllAsync
 
-    protected abstract ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken);
+    public override ValueTask TearDownAsync(CancellationToken cancellationToken) 
+        => ValueTask.CompletedTask;
+
+
+    protected abstract ValueTask HandleMessageAsync(FlowMessage message, CancellationToken cancellationToken);
 
     protected abstract ValueTask HandleDataAsync(TIncomingSink message, CancellationToken cancellationToken);
 

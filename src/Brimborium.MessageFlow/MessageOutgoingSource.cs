@@ -24,7 +24,7 @@ public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owne
         this._ConnectionAccessor = connectionAccessorn;
     }
 
-    public async ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+    public async ValueTask SendMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
         if (this._ConnectionAccessor is null) {
             //
         } else {
@@ -44,7 +44,7 @@ public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owne
 public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor owner)
     : IMessageOutgoingSource<T>
     , IMessageOutgoingSourceInternal
-    where T : RootMessage {
+    where T : FlowMessage {
     private readonly NodeIdentifier _NameId = nameId;
     private readonly IMessageProcessor _Owner = owner;
     private IMessageConnectionAccessor? _ConnectionAccessor = default;
@@ -68,8 +68,9 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
         if (this._ConnectionAccessor is null) {
             //
         } else {
+            message = message.Normalize(this._NameId);
+            this._ConnectionAccessor.LogSendMessage(this._NameId, message);
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
-                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     //if (sink is IMessageIncomingSink<T> messageIncomingSinkT) { 
                     //    await messageIncomingSinkT.ReceiveDataAsync(message, cancellationToken);
@@ -85,12 +86,13 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
         }
     }
 
-    public async ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+    public async ValueTask SendMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
         if (this._ConnectionAccessor is null) {
             //
         } else {
+            message = message.Normalize(this._NameId);
+            this._ConnectionAccessor.LogSendMessage(this._NameId, message);
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
-                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }

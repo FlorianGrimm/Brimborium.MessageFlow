@@ -17,21 +17,30 @@ class EngineBackgroundService : IHostedService {
         var engine = CreateEngine(logger);
         this._Engine = engine;
         messageFlowAPIService.Register(engine.NameId.Name, engine);
-        hostApplicationLifetime.ApplicationStopping.Register(() => {
+        CancellationTokenSource? ctsTearDown = default;
+        hostApplicationLifetime.ApplicationStopping.Register(async void () => {
             if (this._Engine is not null) {
-                this._Engine.HandleApplicationStopping();
+                ctsTearDown = new();
+                await this._Engine.TearDownAsync(ctsTearDown.Token);
+                ctsTearDown = default;
             }
+        });
+        hostApplicationLifetime.ApplicationStopped.Register(() => {
+            ctsTearDown?.Cancel();
         });
     }
 
 
-    private static MessageEngine CreateEngine(ILogger<EngineBackgroundService> logger) {
+    private static MessageEngine CreateEngine(ILogger logger) {
         var engine = new MessageEngine("hack", logger);
-        var producer = new Producer("Producer", logger);
-        var doOne = new DoOne("DoOne", logger);
+        var producer = new Producer("Producer", engine.MessageFlowLogging);
+        var doOne = new DoOne("DoOne", engine.MessageFlowLogging);
+        var doTwo = new DoTwo("DoTwo", engine.MessageFlowLogging);
         engine.ConnectMessage(engine.GlobalOutgoingSource, producer.IncomingSink);
         engine.ConnectData(producer.OutgoingSource, doOne.IncomingSink);
         engine.ConnectMessage(doOne.OutgoingSource, engine.GlobalIncomingSink);
+        engine.ConnectData(producer.OutgoingSource, doTwo.IncomingSink);
+        engine.ConnectMessage(doTwo.OutgoingSource, engine.GlobalIncomingSink);
         return engine;
     }
 
@@ -45,14 +54,14 @@ class EngineBackgroundService : IHostedService {
         await this._Engine.TaskExecute;
     }
 
-    private class Producer : MessageProcessorTransform<RootMessage, MessageData<int>> {
+    private class Producer : MessageProcessorTransform<FlowMessage, MessageData<int>> {
         private Task _TaskTimer = Task.CompletedTask;
         private CancellationTokenSource? _TimerCTS;
 
-        public Producer(NodeIdentifier nameId, ILogger logger) : base(nameId, logger) {
+        public Producer(NodeIdentifier nameId, IMessageFlowLogging messageFlowLogging) : base(nameId, messageFlowLogging) {
         }
 
-        protected override ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        protected override ValueTask HandleMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
             if (message is MessageFlowStart) {
                 if (this._TaskTimer.IsCompleted) {
                     this._TaskTimer = this.StartTimerAsync(cancellationToken);
@@ -68,7 +77,7 @@ class EngineBackgroundService : IHostedService {
             this._TimerCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var stoppingToken = this._TimerCTS.Token;
             int loop = 1;
-            while (!stoppingToken.IsCancellationRequested) { 
+            while (!stoppingToken.IsCancellationRequested) {
                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                 var message = MessageData<int>.Create(loop++);
                 await this.OutgoingSource.SendDataAsync(message, stoppingToken);
@@ -76,7 +85,7 @@ class EngineBackgroundService : IHostedService {
             Interlocked.Exchange(ref this._TimerCTS, null)?.Dispose();
         }
 
-        protected override ValueTask HandleDataAsync(RootMessage message, CancellationToken cancellationToken)
+        protected override ValueTask HandleDataAsync(FlowMessage message, CancellationToken cancellationToken)
             => this.HandleMessageAsync(message, cancellationToken);
 
         protected override bool Dispose(bool disposing) {
@@ -99,7 +108,7 @@ class EngineBackgroundService : IHostedService {
     }
 
     private class DoOne : MessageProcessorTransform<MessageData<int>, MessageData<int>> {
-        public DoOne(NodeIdentifier nameId, ILogger logger) : base(nameId, logger) {
+        public DoOne(NodeIdentifier nameId, IMessageFlowLogging messageFlowLogging) : base(nameId, messageFlowLogging) {
         }
 
         protected override async ValueTask HandleDataAsync(MessageData<int> message, CancellationToken cancellationToken) {
@@ -107,7 +116,21 @@ class EngineBackgroundService : IHostedService {
             await this.OutgoingSource.SendDataAsync(messageNext, cancellationToken);
         }
 
-        protected override async ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        protected override async ValueTask HandleMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
+            await this.OutgoingSource.SendMessageAsync(message, cancellationToken);
+        }
+    }
+
+    private class DoTwo : MessageProcessorTransform<MessageData<int>, MessageData<int>> {
+        public DoTwo(NodeIdentifier nameId, IMessageFlowLogging messageFlowLogging) : base(nameId, messageFlowLogging) {
+        }
+
+        protected override async ValueTask HandleDataAsync(MessageData<int> message, CancellationToken cancellationToken) {
+            var messageNext = MessageData<int>.Create(message.Data + 1);
+            await this.OutgoingSource.SendDataAsync(messageNext, cancellationToken);
+        }
+
+        protected override async ValueTask HandleMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
             await this.OutgoingSource.SendMessageAsync(message, cancellationToken);
         }
     }

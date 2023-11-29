@@ -1,9 +1,10 @@
 ﻿namespace Brimborium.MessageFlow.Test;
 
 public class MessageFlowTest {
-    class DoNothingProcessor(NodeIdentifier nameId, ILogger logger)
-        : MessageProcessorTransform<RootMessage, RootMessage>(nameId, logger) {
-        protected override async ValueTask HandleDataAsync(RootMessage message, CancellationToken cancellationToken) {
+    class DoNothingProcessor(NodeIdentifier nameId, IMessageFlowLogging messageFlowLogging)
+        : MessageProcessorTransform<FlowMessage, FlowMessage>(nameId, messageFlowLogging) {
+
+        protected override async ValueTask HandleDataAsync(FlowMessage message, CancellationToken cancellationToken) {
             ObjectDisposedException.ThrowIf(this.GetIsDisposed() || this._OutgoingSource is null, this);
 
             this.Logger.LogInformation("Handle {NameId} : {message} ", this.NameId, message.ToRootMessageLog());
@@ -11,7 +12,7 @@ public class MessageFlowTest {
             await this._OutgoingSource.SendDataAsync(message, cancellationToken);
         }
 
-        protected override async ValueTask HandleMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+        protected override async ValueTask HandleMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
             ObjectDisposedException.ThrowIf(this.GetIsDisposed() || this._OutgoingSource is null, this);
 
             this.Logger.LogInformation("Handle {NameId} : {message} ", this.NameId, message.ToRootMessageLog());
@@ -46,8 +47,8 @@ public class MessageFlowTest {
         logger.LogInformation("Start");
 
         var e = new MessageEngine(nameof(this.MessageFlowTest001), logger);
-        List<RootMessage> listRootMessages = new();
-        TaskCompletionSource<RootMessage> tcsMessage = new();
+        List<FlowMessage> listRootMessages = new();
+        TaskCompletionSource<FlowMessage> tcsMessage = new();
         e.GlobalIncomingSinkWrite = (message) => {
             listRootMessages.Add(message);
             //if (message is MessageFlowEnd) {
@@ -55,9 +56,9 @@ public class MessageFlowTest {
             //}
         };
 
-        var p1 = new DoNothingProcessor("p1", logger);
-        var p2 = new DoNothingProcessor("p2", logger);
-        var p3 = new DoNothingProcessor("p3", logger);
+        var p1 = new DoNothingProcessor("p1", e.MessageFlowLogging);
+        var p2 = new DoNothingProcessor("p2", e.MessageFlowLogging);
+        var p3 = new DoNothingProcessor("p3", e.MessageFlowLogging);
         e.ConnectMessage(e.GlobalOutgoingSource, p1.IncomingSink);
         e.ConnectMessage(p1.OutgoingSource, p2.IncomingSink);
         e.ConnectMessage(p1.OutgoingSource, p3.IncomingSink);
@@ -71,7 +72,7 @@ public class MessageFlowTest {
         await e.GlobalOutgoingSource.SendMessageAsync(messageFlowStart, cancellationToken);
         
         {
-            var message = new RootMessage(
+            var message = new FlowMessage(
                 MessageIdentifier.CreateMessageIdentifier(),
                 NodeIdentifier.Empty,
                 DateTimeOffset.UtcNow);

@@ -4,16 +4,21 @@ public class MessageEngine
     : DisposableWithState
     , IMessageEngine
     , IMessageProcessor
-    , IMessageConnectionAccessor {
+    , IMessageConnectionAccessor
+    , IMessageFlowLogging {
 
     protected ImmutableArray<IMessageConnection> ListConnection = [];
     protected ImmutableDictionary<NodeIdentifier, ImmutableArray<IMessageIncomingSink>> DictSinkByOutgoingSource = ImmutableDictionary<NodeIdentifier, ImmutableArray<IMessageIncomingSink>>.Empty;
     protected ImmutableDictionary<NodeIdentifier, IMessageProcessor> DictRunningProcessor = ImmutableDictionary<NodeIdentifier, IMessageProcessor>.Empty;
     protected IMessageOutgoingSource _GlobalOutgoingSource;
     protected IMessageIncomingSink _GlobalIncomingSink;
-    private readonly GlobalOutgoingSourceProcessor _GlobalOutgoingSourceProcessor;
-    private readonly GlobalIncomingSinkProcessor _GlobalIncomingSinkProcessor;
-    private readonly NodeIdentifier _NameId;
+
+    protected readonly GlobalOutgoingSourceProcessor _GlobalOutgoingSourceProcessor;
+    protected readonly GlobalIncomingSinkProcessor _GlobalIncomingSinkProcessor;
+    protected readonly NodeIdentifier _NameId;
+    protected readonly MessageFlowLoggingChained _MessageFlowLoggingIncomingSink;
+    protected readonly IMessageFlowLogging _MessageFlowLoggingOutgoingSource;
+
     protected CancellationTokenSource? _ExecuteCTS;
     protected TaskCompletionSource? _ExecuteTaskCompletionSource;
     protected Task _TaskExecute = Task.CompletedTask;
@@ -21,15 +26,27 @@ public class MessageEngine
 
     public MessageEngine(
         NodeIdentifier nameId,
-        ILogger logger) : base(logger) {
+        ILogger logger
+        ) : this(nameId, null, logger) {
+    }
+
+    public MessageEngine(
+        NodeIdentifier nameId,
+        IMessageFlowLogging? messageFlowLogging,
+        ILogger logger
+        ) : base(logger) {
         this._NameId = nameId;
-        this._GlobalOutgoingSourceProcessor = new GlobalOutgoingSourceProcessor(nameId + "GlobalSource", this, logger);
-        this._GlobalIncomingSinkProcessor = new GlobalIncomingSinkProcessor(nameId + "GlobalSink", this, logger);
+        this._MessageFlowLoggingOutgoingSource = messageFlowLogging ?? new MessageFlowLoggingNoop();
+        this._MessageFlowLoggingIncomingSink = new MessageFlowLoggingChained(this._MessageFlowLoggingOutgoingSource, logger);
+        this._GlobalOutgoingSourceProcessor = new GlobalOutgoingSourceProcessor(nameId + "GlobalSource", this, this._MessageFlowLoggingOutgoingSource);
+        this._GlobalIncomingSinkProcessor = new GlobalIncomingSinkProcessor(nameId + "GlobalSink", this, this._MessageFlowLoggingOutgoingSource);
         this._GlobalOutgoingSource = new MessageOutgoingSource(this._GlobalOutgoingSourceProcessor.NameId + nameof(this.GlobalOutgoingSource), this._GlobalOutgoingSourceProcessor);
         this._GlobalIncomingSink = new MessageIncomingSink(this._GlobalIncomingSinkProcessor.NameId + nameof(this.GlobalIncomingSink), this._GlobalIncomingSinkProcessor, this.GlobalIncomingSinkWriteAsync);
     }
 
     public NodeIdentifier NameId => this._NameId;
+
+    public IMessageFlowLogging MessageFlowLogging => this._MessageFlowLoggingOutgoingSource;
 
     public IMessageOutgoingSource GlobalOutgoingSource => this._GlobalOutgoingSource;
     public IMessageIncomingSink GlobalIncomingSink => this._GlobalIncomingSink;
@@ -43,7 +60,7 @@ public class MessageEngine
         }
     }
 
-    public void ConnectData<T>(IMessageOutgoingSource<T> outgoingSource, IMessageIncomingSink<T> incomingSink) where T : RootMessage {
+    public void ConnectData<T>(IMessageOutgoingSource<T> outgoingSource, IMessageIncomingSink<T> incomingSink) where T : FlowMessage {
         var connection = new MessageConnection<T>(outgoingSource, incomingSink);
         this.ListConnection = this.ListConnection.Add(connection);
         this.ListConnectionPostChange();
@@ -81,6 +98,21 @@ public class MessageEngine
         this.Logger.LogInformation("Owner:{MessageProcessorId}, DictRunningProcessor:#{DictRunningProcessorCount}", owner.NameId, this.DictRunningProcessor.Count);
         if (this.DictRunningProcessor.Count == 0) {
             this._ExecuteCTS?.Cancel();
+        }
+    }
+
+    public async ValueTask<bool> SendFlowEnd(Exception? error = default, CancellationToken cancellationToken = default) {
+        MessageFlowStart? messageFlowStart;
+        lock (this) {
+            messageFlowStart = this._MessageFlowStart;
+            this._MessageFlowStart = null;
+        }
+        if (messageFlowStart is null) {
+            return false;
+        } else {
+            var messageFlowEnd = messageFlowStart.CreateFlowEnd(error);
+            await this.GlobalOutgoingSource.SendMessageAsync(messageFlowEnd, CancellationToken.None);
+            return true;
         }
     }
 
@@ -141,22 +173,15 @@ public class MessageEngine
         }
     }
 
-    public async ValueTask<bool> SendFlowEnd(Exception? error = default, CancellationToken cancellationToken = default) {
-        MessageFlowStart? messageFlowStart;
-        lock (this) {
-            messageFlowStart = this._MessageFlowStart;
-            this._MessageFlowStart = null;
-        }
-        if (messageFlowStart is null) {
-            return false;
-        } else {
-            var messageFlowEnd = messageFlowStart.CreateFlowEnd(error);
-            await this.GlobalOutgoingSource.SendMessageAsync(messageFlowEnd, CancellationToken.None);
-            return true;
-        }
+    public Task TaskExecute => this._TaskExecute;
+
+    public async ValueTask TearDownAsync(CancellationToken cancellationToken) {
+        await ValueTask.CompletedTask;
     }
 
-    public Task TaskExecute => this._TaskExecute;
+    public void HandleApplicationStopping() {
+        this.SetMessageFlowEnd(this);
+    }
 
     private HashSet<IMessageProcessor> CollectMessageProcessor() {
         var htMessageProcessor = new System.Collections.Generic.HashSet<IMessageProcessor>();
@@ -169,7 +194,6 @@ public class MessageEngine
 
         return htMessageProcessor;
     }
-
 
     public List<IMessageIncomingSink> GetListIncomingSink() => [this.GlobalIncomingSink];
 
@@ -259,27 +283,36 @@ public class MessageEngine
             [],
             [this._GlobalOutgoingSourceProcessor.NameId, this._GlobalIncomingSinkProcessor.NameId]);
 
-    private ValueTask GlobalIncomingSinkWriteAsync(RootMessage item, CancellationToken cancellationToken) {
+    private ValueTask GlobalIncomingSinkWriteAsync(FlowMessage item, CancellationToken cancellationToken) {
         var handler = this.GlobalIncomingSinkWrite;
         if (handler is not null) { handler(item); }
         return ValueTask.CompletedTask;
     }
 
+    public Action<FlowMessage>? GlobalIncomingSinkWrite { get; set; }
 
-    public Action<RootMessage>? GlobalIncomingSinkWrite { get; set; }
+    // IMessageFlowLogging
 
-    public void HandleApplicationStopping() {
-        this.SetMessageFlowEnd(this);
+    public ILogger GetLogger() => this.Logger;
+
+    public void LogHandleMessage(NodeIdentifier nameId, FlowMessage message) {
+        this._MessageFlowLoggingOutgoingSource.LogHandleMessage(nameId, message);
+    }
+    
+    public void LogSendMessage(NodeIdentifier nameId, FlowMessage message) {
+        this._MessageFlowLoggingOutgoingSource.LogSendMessage(nameId, message);
     }
 
-    public class GlobalOutgoingSourceProcessor(
+    public sealed class GlobalOutgoingSourceProcessor(
         NodeIdentifier nameId,
         MessageEngine messageEngine,
-        ILogger logger
+        IMessageFlowLogging messageFlowLogging
     )
-    : DisposableWithState(logger)
-    , IMessageProcessor {
+    : DisposableWithState(messageFlowLogging.GetLogger())
+    , IMessageProcessor
+    , IMessageFlowLogging {
         private readonly MessageEngine _MessageEngine = messageEngine;
+        private readonly IMessageFlowLogging _MessageFlowLogging = messageFlowLogging;
 
         public NodeIdentifier NameId => nameId;
 
@@ -295,6 +328,8 @@ public class MessageEngine
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask TearDownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
         public MessageGraphNode ToMessageGraphNode()
             => new(
                 nameId,
@@ -302,17 +337,30 @@ public class MessageEngine
                 this.GetListIncomingSink().ToListNodeIdentifier(),
                 new()
                 );
+
+        // IMessageFlowLogging
+
+        public ILogger GetLogger() => this._MessageFlowLogging.GetLogger();
+
+        public void LogSendMessage(NodeIdentifier nameId, FlowMessage message) {
+            this._MessageFlowLogging.LogSendMessage(nameId, message);
+        }
+
+        public void LogHandleMessage(NodeIdentifier nameId, FlowMessage message) {
+            this._MessageFlowLogging.LogHandleMessage(nameId, message);
+        }
     }
 
-
-    public class GlobalIncomingSinkProcessor(
+    public sealed class GlobalIncomingSinkProcessor(
             NodeIdentifier nameId,
             MessageEngine messageEngine,
-            ILogger logger
+            IMessageFlowLogging messageFlowLogging
         )
-        : DisposableWithState(logger)
-        , IMessageProcessor {
+        : DisposableWithState(messageFlowLogging.GetLogger())
+        , IMessageProcessor
+        , IMessageFlowLogging {
         private readonly MessageEngine _MessageEngine = messageEngine;
+        private readonly IMessageFlowLogging _MessageFlowLogging = messageFlowLogging;
 
         public NodeIdentifier NameId => nameId;
 
@@ -328,6 +376,8 @@ public class MessageEngine
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask TearDownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
         public MessageGraphNode ToMessageGraphNode()
             => new(
                 nameId,
@@ -335,5 +385,17 @@ public class MessageEngine
                 this.GetListIncomingSink().ToListNodeIdentifier(),
                 new()
                 );
+
+        // IMessageFlowLogging
+
+        public ILogger GetLogger() => this._MessageFlowLogging.GetLogger();
+
+        public void LogSendMessage(NodeIdentifier nameId, FlowMessage message) {
+            this._MessageFlowLogging.LogSendMessage(nameId, message);
+        }
+
+        public void LogHandleMessage(NodeIdentifier nameId, FlowMessage message) {
+            this._MessageFlowLogging.LogHandleMessage(nameId, message);
+        }
     }
 }

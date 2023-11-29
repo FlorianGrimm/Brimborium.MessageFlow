@@ -8,13 +8,18 @@ public interface IWithName {
 
 public interface IMessageProcessor
     : IDisposableWithState
-    , IWithName {
+    , IWithName 
+    , IMessageFlowLogging
+    {
     List<IMessageIncomingSink> GetListIncomingSink();
     List<IMessageOutgoingSource> GetListOutgoingSource();
 
     ValueTask StartAsync(CancellationToken cancellationToken);
 
     ValueTask ExecuteAsync(CancellationToken cancellationToken);
+
+    ValueTask TearDownAsync(CancellationToken cancellationToken);
+
     MessageGraphNode ToMessageGraphNode();
 }
 
@@ -22,12 +27,12 @@ public interface IMessageOutgoingSource
     : IWithName {
     NodeIdentifier NodeNameId { get; }
 
-    ValueTask SendMessageAsync(RootMessage message, CancellationToken cancellationToken);
+    ValueTask SendMessageAsync(FlowMessage message, CancellationToken cancellationToken);
 }
 
 public interface IMessageOutgoingSource<T>
     : IMessageOutgoingSource
-    where T : RootMessage {
+    where T : FlowMessage {
     ValueTask SendDataAsync(T message, CancellationToken cancellationToken);
 }
 
@@ -36,7 +41,15 @@ public interface IMessageOutgoingSourceInternal : IMessageOutgoingSource {
     void Connect(IMessageConnectionAccessor connectionAccessor);
 }
 
-public interface IMessageConnectionAccessor {
+public interface IMessageFlowLogging {
+    void LogSendMessage(NodeIdentifier nameId, FlowMessage message);
+    void LogHandleMessage(NodeIdentifier nameId, FlowMessage message);
+
+    ILogger GetLogger();
+}
+
+public interface IMessageConnectionAccessor 
+    : IMessageFlowLogging {
     bool TryGetSinks(
        NodeIdentifier sourceId,
        [MaybeNullWhen(false)] out ImmutableArray<IMessageIncomingSink> result);
@@ -48,12 +61,12 @@ public interface IMessageIncomingSink
     : IWithName {
     NodeIdentifier NodeNameId { get; }
 
-    ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken);
+    ValueTask ReceiveMessageAsync(FlowMessage message, CancellationToken cancellationToken);
 }
 
 public interface IMessageIncomingSink<T>
     : IMessageIncomingSink
-    where T : RootMessage {
+    where T : FlowMessage {
     ValueTask ReceiveDataAsync(T message, CancellationToken cancellationToken);
 }
 
@@ -70,7 +83,7 @@ public interface IMessageConnection {
 }
 
 public interface IMessageConnection<T>
-    where T : RootMessage {
+    where T : FlowMessage {
     IMessageOutgoingSource<T> OutgoingSourceData { get; }
     IMessageIncomingSink<T> IncomingSinkData { get; }
 }
@@ -81,11 +94,16 @@ public interface IMessageConnectionInternal : IMessageConnection {
 
 public interface IMessageEngine
     : IDisposableWithState {
+    IMessageFlowLogging MessageFlowLogging { get; }
+
     IMessageOutgoingSource GlobalOutgoingSource { get; }
+
     IMessageIncomingSink GlobalIncomingSink { get; }
+
     void ConnectMessage(IMessageOutgoingSource outgoingSource, IMessageIncomingSink incomingSink);
+
     void ConnectData<T>(IMessageOutgoingSource<T> outgoingSource, IMessageIncomingSink<T> incomingSink)
-        where T : RootMessage;
+        where T : FlowMessage;
 
     //ValueTask BootAsync(CancellationToken cancellationToken);
 

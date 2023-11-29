@@ -1,6 +1,6 @@
 ﻿namespace Brimborium.MessageFlow;
 
-public delegate ValueTask ChannelWriteAsync(RootMessage item, CancellationToken cancellationToken);
+public delegate ValueTask ChannelWriteAsync(FlowMessage item, CancellationToken cancellationToken);
 
 public class MessageIncomingSink 
     : IMessageIncomingSink
@@ -19,7 +19,7 @@ public class MessageIncomingSink
 
     public NodeIdentifier NodeNameId => this._Owner.NameId;
 
-    public async ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+    public async ValueTask ReceiveMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._Owner.GetIsDisposed(), this);
 
         await this._ChannelWriteAsync(message, cancellationToken);
@@ -36,12 +36,15 @@ public class MessageIncomingSink
 public class MessageIncomingSink<T>
     : IMessageIncomingSink<T>
     , IMessageIncomingSinkInternal
-    where T : RootMessage {
+    where T : FlowMessage {
     private readonly NodeIdentifier _NameId;
     private readonly IMessageProcessor _Owner;
     private readonly ChannelWriteAsync _ChannelWriteAsync;
 
-    public MessageIncomingSink(NodeIdentifier nameId, IMessageProcessor owner, ChannelWriteAsync channelWriteAsync) {
+    public MessageIncomingSink(
+        NodeIdentifier nameId, 
+        IMessageProcessor owner, 
+        ChannelWriteAsync channelWriteAsync) {
         this._NameId = nameId;
         this._Owner = owner;
         this._ChannelWriteAsync = channelWriteAsync;
@@ -51,7 +54,7 @@ public class MessageIncomingSink<T>
 
     public NodeIdentifier NodeNameId => this._Owner.NameId;
 
-    public async ValueTask ReceiveMessageAsync(RootMessage message, CancellationToken cancellationToken) {
+    public async ValueTask ReceiveMessageAsync(FlowMessage message, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._Owner.GetIsDisposed(), this);
         
         await this._ChannelWriteAsync(message, cancellationToken);
