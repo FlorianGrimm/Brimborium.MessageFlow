@@ -28,15 +28,16 @@ public class MessageOutgoingSource(NodeIdentifier nameId, IMessageProcessor owne
         if (this._ConnectionAccessor is null) {
             //
         } else {
+            message = message.Normalize(this._NameId);
+            this._ConnectionAccessor.LogSendMessage(this._NameId, message);
             if (this._ConnectionAccessor.TryGetSinks(this._NameId, out var listSinks)) {
-                message = message.Normalize(this._NameId);
                 foreach (IMessageIncomingSink sink in listSinks) {
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }
             }
-            if (message is MessageFlowEnd) {
-                this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
-            }
+            //if (message is MessageFlowEnd) {
+            //    this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
+            //}
         }
     }
 }
@@ -80,9 +81,9 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }
             }
-            if (message is MessageFlowEnd) {
-                this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
-            }
+            //if (message is MessageFlowEnd) {
+            //    this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
+            //}
         }
     }
 
@@ -97,9 +98,9 @@ public class MessageOutgoingSource<T>(NodeIdentifier nameId, IMessageProcessor o
                     await sink.ReceiveMessageAsync(message, cancellationToken);
                 }
             }
-            if (message is MessageFlowEnd) {
-                this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
-            }
+            //if (message is MessageFlowEnd) {
+            //    this._ConnectionAccessor.SetMessageFlowEnd(this._Owner);
+            //}
         }
     }
 }

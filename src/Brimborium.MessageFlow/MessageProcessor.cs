@@ -16,11 +16,15 @@ public abstract class MessageProcessor(
 
     public virtual List<IMessageOutgoingSource> GetListOutgoingSource() => [];
 
-    public abstract ValueTask StartAsync(CancellationToken cancellationToken);
+    public virtual ValueTask BootAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    
+    public virtual ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-    public abstract ValueTask ExecuteAsync(CancellationToken cancellationToken);
+    public virtual ValueTask ExecuteAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-    public abstract ValueTask TearDownAsync(CancellationToken cancellationToken);
+    public virtual Task WaitUntilEmptyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public virtual ValueTask ShutdownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
     public virtual MessageGraphNode ToMessageGraphNode()
         => new MessageGraphNode(

@@ -30,7 +30,7 @@ public record class FlowMessage(
 
 }
 
-public static class RootMessageExtension { 
+public static class FlowMessageExtension { 
     public static T Normalize<T>(this T message, NodeIdentifier nameId) 
         where T: FlowMessage {
         if (message.SourceId.Id == 0) {
@@ -72,32 +72,6 @@ public readonly struct MessageLog(FlowMessage rootMessage) {
         this.MessageId.ToString(sb).Append(' ');
         return sb;
     }
-}
-
-
-public sealed record class MessageFlowStart(
-    MessageIdentifier MessageId,
-    NodeIdentifier SourceId,
-    DateTimeOffset CreatedAt
-    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
-
-    public static MessageFlowStart CreateStart(NodeIdentifier? nameId)
-        => new(MessageIdentifier.CreateGroupMessageIdentifier(), nameId ?? NodeIdentifier.Empty, DateTimeOffset.UtcNow);
-
-    public MessageFlowEnd CreateFlowEnd(Exception? error = default)
-        => new(this.MessageId.GetNextGroupMessageIdentifier(), this.SourceId, DateTimeOffset.UtcNow, error);
-
-    //public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.Start;
-}
-
-public sealed record class MessageFlowEnd(
-    MessageIdentifier MessageId,
-    NodeIdentifier SourceId,
-    DateTimeOffset CreatedAt,
-    Exception? Error
-    ) : FlowMessage(MessageId, SourceId, CreatedAt) {
-
-    //public override MessageAction GetMessageAction() => MessageAction.Control | MessageAction.Flow | MessageAction.End;
 }
 
 public record class MessageData(

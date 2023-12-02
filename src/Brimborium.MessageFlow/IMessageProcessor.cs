@@ -12,13 +12,17 @@ public interface IMessageProcessor
     , IMessageFlowLogging
     {
     List<IMessageIncomingSink> GetListIncomingSink();
+
     List<IMessageOutgoingSource> GetListOutgoingSource();
+    
+    ValueTask BootAsync(CancellationToken cancellationToken);
 
     ValueTask StartAsync(CancellationToken cancellationToken);
 
     ValueTask ExecuteAsync(CancellationToken cancellationToken);
+    Task WaitUntilEmptyAsync(CancellationToken cancellationToken);
 
-    ValueTask TearDownAsync(CancellationToken cancellationToken);
+    ValueTask ShutdownAsync(CancellationToken cancellationToken);
 
     MessageGraphNode ToMessageGraphNode();
 }
@@ -54,7 +58,7 @@ public interface IMessageConnectionAccessor
        NodeIdentifier sourceId,
        [MaybeNullWhen(false)] out ImmutableArray<IMessageIncomingSink> result);
     
-    void SetMessageFlowEnd(IMessageProcessor owner);
+    void Disconnected(IMessageProcessor caller);
 }
 
 public interface IMessageIncomingSink
@@ -105,15 +109,17 @@ public interface IMessageEngine
     void ConnectData<T>(IMessageOutgoingSource<T> outgoingSource, IMessageIncomingSink<T> incomingSink)
         where T : FlowMessage;
 
-    //ValueTask BootAsync(CancellationToken cancellationToken);
-
+    // Initialize State - dehydrate
+    ValueTask BootAsync(CancellationToken cancellationToken);
+    
+    // Start Looping
     ValueTask StartAsync(CancellationToken cancellationToken);
 
+    // Run Loop until Shutdown or cancellationToken
     ValueTask ExecuteAsync(CancellationToken cancellationToken);
+    
+    // terminate Loop - hydrate
+    ValueTask ShutdownAsync(CancellationToken cancellationToken);
 
-    //ValueTask ShutdownAsync(CancellationToken cancellationToken);
     MessageFlowGraph ToMessageFlowGraph();
-    ValueTask<bool> SendFlowEnd(Exception? error = null, CancellationToken cancellationToken = default);
-
-    void HandleApplicationStopping();
 }

@@ -22,7 +22,6 @@ public class MessageEngine
     protected CancellationTokenSource? _ExecuteCTS;
     protected TaskCompletionSource? _ExecuteTaskCompletionSource;
     protected Task _TaskExecute = Task.CompletedTask;
-    protected MessageFlowStart? _MessageFlowStart;
 
     public MessageEngine(
         NodeIdentifier nameId,
@@ -87,36 +86,15 @@ public class MessageEngine
         }
     }
 
-    public void SetMessageFlowEnd(IMessageProcessor owner) {
-        lock (this) {
-            foreach (var outgoingSource in owner.GetListOutgoingSource()) {
-                this.DictSinkByOutgoingSource = this.DictSinkByOutgoingSource.Remove(outgoingSource.NameId);
-                if (this.DictSinkByOutgoingSource.Count == 0) { }
-            }
-            this.DictRunningProcessor = this.DictRunningProcessor.Remove(owner.NameId);
+    public virtual async ValueTask BootAsync(CancellationToken cancellationToken) {
+        var htMessageProcessor = CollectMessageProcessor();
+        foreach (var processor in htMessageProcessor) {
+            await processor.BootAsync(cancellationToken);
         }
-        this.Logger.LogInformation("Owner:{MessageProcessorId}, DictRunningProcessor:#{DictRunningProcessorCount}", owner.NameId, this.DictRunningProcessor.Count);
-        if (this.DictRunningProcessor.Count == 0) {
-            this._ExecuteCTS?.Cancel();
-        }
+        await ValueTask.CompletedTask;
     }
 
-    public async ValueTask<bool> SendFlowEnd(Exception? error = default, CancellationToken cancellationToken = default) {
-        MessageFlowStart? messageFlowStart;
-        lock (this) {
-            messageFlowStart = this._MessageFlowStart;
-            this._MessageFlowStart = null;
-        }
-        if (messageFlowStart is null) {
-            return false;
-        } else {
-            var messageFlowEnd = messageFlowStart.CreateFlowEnd(error);
-            await this.GlobalOutgoingSource.SendMessageAsync(messageFlowEnd, CancellationToken.None);
-            return true;
-        }
-    }
-
-    public async ValueTask StartAsync(CancellationToken cancellationToken) {
+    public async virtual ValueTask StartAsync(CancellationToken cancellationToken) {
         lock (this) {
             if (this._ExecuteCTS is not null) {
                 return;
@@ -131,34 +109,40 @@ public class MessageEngine
 
         var htMessageProcessor = CollectMessageProcessor();
         var executeToken = this._ExecuteCTS.Token;
-        foreach (var messageProcessor in htMessageProcessor) {
-            await messageProcessor.StartAsync(executeToken);
+        foreach (var processor in htMessageProcessor) {
+            this.Logger.LogInformation("Start: {processorId}", processor.NameId);
+            await processor.StartAsync(executeToken);
             lock (this) {
-                this.DictRunningProcessor = this.DictRunningProcessor.Add(messageProcessor.NameId, messageProcessor);
+                this.DictRunningProcessor = this.DictRunningProcessor.Add(processor.NameId, processor);
             }
-        }
-        {
-            MessageFlowStart messageFlowStart = MessageFlowStart.CreateStart(this.NameId);
-            await this.GlobalOutgoingSource.SendMessageAsync(messageFlowStart, executeToken);
-            this._MessageFlowStart = messageFlowStart;
         }
     }
 
-    public async ValueTask ExecuteAsync(CancellationToken cancellationToken) {
+    public void Disconnected(IMessageProcessor caller) {
+    }
+
+    public virtual async ValueTask ExecuteAsync(CancellationToken cancellationToken) {
         if (this._ExecuteCTS is null) { return; }
         if (this._ExecuteTaskCompletionSource is null) { return; }
         if (this._TaskExecute.IsCompleted) { return; }
 
         var listMessageProcessor = this.DictRunningProcessor.Values.ToArray();
-
-        foreach (var messageProcessor in listMessageProcessor) {
+        var executeToken = this._ExecuteCTS.Token;
+        foreach (var processor in listMessageProcessor) {
             try {
-                await messageProcessor.ExecuteAsync(cancellationToken);
+                await processor.ExecuteAsync(executeToken);
             } catch (OperationCanceledException) {
+                this.Logger.LogInformation("stopped: {processorId}", processor.NameId);
+            } catch (Exception error) {
+                this.Logger.LogError(error, "failed: {processorId}", processor.NameId);
             }
+            lock (this.DictRunningProcessor) {
+                this.DictRunningProcessor.Remove(processor.NameId);
+            }
+            this.Logger.LogInformation("Execute Done: {processorId}", processor.NameId);
         }
-
-        using (var executeCTS = this._ExecuteCTS) {
+        {
+            var executeCTS = this._ExecuteCTS;
             try {
                 if (executeCTS is not null) {
                     if (!executeCTS.IsCancellationRequested) {
@@ -168,19 +152,70 @@ public class MessageEngine
             } catch {
             } finally {
                 this._ExecuteCTS = null;
-                this._ExecuteTaskCompletionSource = null;
+            }
+        }
+        this._ExecuteTaskCompletionSource.SetResult();
+    }
+
+    //public Task TaskExecute => this.GetTaskExecute();
+
+    public async Task GetTaskExecute(CancellationToken cancellationToken) {
+        try {
+            if (this._ExecuteTaskCompletionSource is not null) {
+                await this._ExecuteTaskCompletionSource.Task;
+            }
+            await this._TaskExecute.WaitAsync(cancellationToken);
+        } catch (TaskCanceledException) {
+        } catch (OperationCanceledException) {
+        }
+    }
+
+    public async Task WaitUntilEmptyAsync(CancellationToken cancellationToken) {
+        List<IMessageProcessor> listRunningProcessor;
+        lock (this) {
+            listRunningProcessor = this.DictRunningProcessor.Values.ToList();
+        }
+        foreach (var processor in listRunningProcessor) {
+            try {
+                this.Logger.LogInformation("WaitUntilEmptyAsync: {processorId}", processor.NameId);
+                await processor.WaitUntilEmptyAsync(cancellationToken);
+            } catch (Exception error) {
+                // TODO: log
+                this.Logger.LogError(error, "Error");
             }
         }
     }
 
-    public Task TaskExecute => this._TaskExecute;
-
-    public async ValueTask TearDownAsync(CancellationToken cancellationToken) {
-        await ValueTask.CompletedTask;
-    }
-
-    public void HandleApplicationStopping() {
-        this.SetMessageFlowEnd(this);
+    public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken) {
+        if (this._ExecuteCTS is not null) {
+            this.Logger.LogInformation("Shutdown: {engineId}", this.NameId);
+            await this._ExecuteCTS.CancelAsync();
+        }
+        try {
+            using (var cts = new CancellationTokenSource()) {
+                var task = this.GetTaskExecute(cancellationToken);
+                var taskDelay = Task.Delay(TimeSpan.FromSeconds(30), cts.Token);
+                var taskResult = await Task.WhenAny(task, taskDelay);
+                if (!taskDelay.IsCompleted) {
+                    await cts.CancelAsync();
+                }
+            }
+        } catch (TaskCanceledException) {
+        } catch (OperationCanceledException) {
+        }
+        List<IMessageProcessor> listRunningProcessor;
+        lock (this) {
+            listRunningProcessor = this.DictRunningProcessor.Values.ToList();
+        }
+        foreach (var processor in listRunningProcessor) {
+            try {
+                this.Logger.LogInformation("Shutdown: {processorId}", processor.NameId);
+                await processor.ShutdownAsync(cancellationToken);
+            } catch (Exception error) {
+                // TODO: log
+                this.Logger.LogError(error, "Error");
+            }
+        }
     }
 
     private HashSet<IMessageProcessor> CollectMessageProcessor() {
@@ -268,14 +303,6 @@ public class MessageEngine
         return result;
     }
 
-    /*
-    public MessageGraphNode ToMessageGraphNode()
-        => new(
-            this.NameId,
-            this.GetListOutgoingSource().ToListNodeIdentifier(),
-            this.GetListIncomingSink().ToListNodeIdentifier(),
-            new());
-    */
     public MessageGraphNode ToMessageGraphNode()
         => new(
             this.NameId,
@@ -298,7 +325,7 @@ public class MessageEngine
     public void LogHandleMessage(NodeIdentifier nameId, FlowMessage message) {
         this._MessageFlowLoggingOutgoingSource.LogHandleMessage(nameId, message);
     }
-    
+
     public void LogSendMessage(NodeIdentifier nameId, FlowMessage message) {
         this._MessageFlowLoggingOutgoingSource.LogSendMessage(nameId, message);
     }
@@ -320,15 +347,15 @@ public class MessageEngine
 
         public List<IMessageOutgoingSource> GetListOutgoingSource() => this._MessageEngine.GetListOutgoingSource();
 
-        public ValueTask StartAsync(CancellationToken cancellationToken) {
-            return ValueTask.CompletedTask;
-        }
+        public ValueTask BootAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public ValueTask ExecuteAsync(CancellationToken cancellationToken) {
-            return ValueTask.CompletedTask;
-        }
+        public ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public ValueTask TearDownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask ExecuteAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        
+        public Task WaitUntilEmptyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public ValueTask ShutdownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
         public MessageGraphNode ToMessageGraphNode()
             => new(
@@ -368,15 +395,15 @@ public class MessageEngine
 
         public List<IMessageOutgoingSource> GetListOutgoingSource() => [];
 
-        public ValueTask StartAsync(CancellationToken cancellationToken) {
-            return ValueTask.CompletedTask;
-        }
+        public ValueTask BootAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public ValueTask ExecuteAsync(CancellationToken cancellationToken) {
-            return ValueTask.CompletedTask;
-        }
+        public ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public ValueTask TearDownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask ExecuteAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public Task WaitUntilEmptyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public ValueTask ShutdownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
         public MessageGraphNode ToMessageGraphNode()
             => new(

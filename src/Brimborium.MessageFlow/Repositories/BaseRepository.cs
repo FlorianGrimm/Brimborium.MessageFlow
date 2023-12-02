@@ -1,16 +1,18 @@
 ﻿namespace Brimborium.MessageFlow.Repositories;
 
-public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> : DisposableWithState
+public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> 
+    : DisposableWithState
+    , IRepository<TRepositoryState, TRepositoryTransaction>
     where TRepositoryState : class, IRepositoryState
     where TRepositoryTransaction : class, IRepositoryTransaction<TRepositoryState> {
 
     protected SemaphoreSlim _Lock;
     protected TRepositoryState _State;
-    protected readonly IRepositoryPersitence<TRepositoryState> _RepositoryPersitence;
+    protected readonly IRepositoryPersitence<TRepositoryState, TRepositoryTransaction> _RepositoryPersitence;
     protected TRepositoryTransaction? _CurrentTransaction;
 
     protected BaseRepository(
-        IRepositoryPersitence<TRepositoryState> repositoryPersitence,
+        IRepositoryPersitence<TRepositoryState, TRepositoryTransaction> repositoryPersitence,
         TRepositoryState? repositoryState,
         ILogger logger
         ) : base(logger) {
@@ -19,12 +21,17 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> :
         this._RepositoryPersitence = repositoryPersitence;
     }
 
-    public TRepositoryState GetState() => this._State;
+    public TRepositoryState State => this._State;
 
     protected abstract TRepositoryTransaction CreateRepositoryTransaction(ITransactionFinalizer<TRepositoryState, TRepositoryTransaction> transactionFinalizer);
 
-    public async ValueTask<TRepositoryTransaction> GetTransaction() {
-        await this._Lock.WaitAsync();
+    public async ValueTask<TRepositoryTransaction> CreateTransaction(CancellationToken cancellationToken) {
+        try { 
+            await this._Lock.WaitAsync(cancellationToken);
+        } catch (OperationCanceledException){
+            // TODO: log
+            throw;
+        }
         try {
             var transactionFinalizer = new TransactionFinalizer(this);
             var result = this.CreateRepositoryTransaction(transactionFinalizer);
@@ -51,13 +58,11 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> :
         }
     }
 
-    protected abstract ValueTask SaveAsync(TRepositoryTransaction transaction, TRepositoryState oldState, TRepositoryState nextState);
-
-    internal async ValueTask CommitAsync(TRepositoryTransaction transaction, TRepositoryState state) {
+    internal async ValueTask CommitAsync(TRepositoryTransaction transaction, TRepositoryState state, CancellationToken cancellationToken) {
         var oldState = this._State;
         this._State = state;
         this._Lock.Release();
-        await this.SaveAsync(transaction, oldState, state);
+        await this.SaveAsync(transaction, oldState, state, cancellationToken);
         //this._Logger.LogInformation("RepositoryState saved");
     }
 
@@ -75,6 +80,11 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> :
             this._Lock.Release();
         }
     }
+    protected abstract ValueTask SaveAsync(
+        TRepositoryTransaction transaction,
+        TRepositoryState oldState,
+        TRepositoryState nextState,
+        CancellationToken cancellationToken);
 
     internal sealed class TransactionFinalizer(
         BaseRepository<TRepositoryState, TRepositoryTransaction> owner
@@ -86,14 +96,14 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> :
             this._Transaction = transaction;
         }
 
-        public async ValueTask CommitAsync(TRepositoryState state) {
+        public async ValueTask CommitAsync(TRepositoryState state, CancellationToken cancellationToken) {
             var owner = this._Owner;
             this._Owner = default;
             var transaction = this._Transaction;
             this._Transaction = default;
 
             if (owner is not null && transaction is not null) {
-                await owner.CommitAsync(transaction, state);
+                await owner.CommitAsync(transaction, state, cancellationToken);
             }
         }
 
@@ -110,8 +120,14 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> :
     }
 }
 
-public class BaseRepositoryTransaction<TRepositoryState> : IRepositoryTransaction<TRepositoryState>
+public abstract class BaseRepositoryTransaction<TRepositoryState>(ILogger logger)
+    : DisposableWithState(logger)
+    , IRepositoryTransaction<TRepositoryState>
     where TRepositoryState : class, IRepositoryState {
+
+    public abstract ValueTask CommitAsync(CancellationToken cancellationToken);
+    
+    public abstract void Cancel();
 }
 
 public enum RepositoryChangeMode {
