@@ -53,6 +53,7 @@ public class MessageEngine
     public void ConnectMessage(IMessageOutgoingSource outgoingSource, IMessageIncomingSink incomingSink) {
         var connection = new MessageConnection(outgoingSource, incomingSink);
         this.ListConnection = this.ListConnection.Add(connection);
+        this.StateVersion++;
         this.ListConnectionPostChange();
         if (outgoingSource is IMessageOutgoingSourceInternal sourceInternal) {
             sourceInternal.Connect(this);
@@ -62,6 +63,7 @@ public class MessageEngine
     public void ConnectData<T>(IMessageOutgoingSource<T> outgoingSource, IMessageIncomingSink<T> incomingSink) where T : FlowMessage {
         var connection = new MessageConnection<T>(outgoingSource, incomingSink);
         this.ListConnection = this.ListConnection.Add(connection);
+        this.StateVersion++;
         this.ListConnectionPostChange();
         if (outgoingSource is IMessageOutgoingSourceInternal sourceInternal) {
             sourceInternal.Connect(this);
@@ -115,6 +117,7 @@ public class MessageEngine
             lock (this) {
                 this.DictRunningProcessor = this.DictRunningProcessor.Add(processor.NameId, processor);
             }
+            this.StateVersion++;
         }
     }
 
@@ -143,21 +146,14 @@ public class MessageEngine
         }
         {
             var executeCTS = this._ExecuteCTS;
-            try {
-                if (executeCTS is not null) {
-                    if (!executeCTS.IsCancellationRequested) {
-                        await executeCTS.CancelAsync();
-                    }
+            if (executeCTS is not null) {
+                if (!executeCTS.IsCancellationRequested) {
+                    await executeCTS.CancelAsync();
                 }
-            } catch {
-            } finally {
-                this._ExecuteCTS = null;
             }
         }
-        this._ExecuteTaskCompletionSource.SetResult();
+        this._ExecuteTaskCompletionSource.TrySetResult();
     }
-
-    //public Task TaskExecute => this.GetTaskExecute();
 
     public async Task GetTaskExecute(CancellationToken cancellationToken) {
         try {
@@ -352,7 +348,7 @@ public class MessageEngine
         public ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
         public ValueTask ExecuteAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
-        
+
         public Task WaitUntilEmptyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public ValueTask ShutdownAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
