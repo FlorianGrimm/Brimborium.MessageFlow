@@ -150,12 +150,17 @@ public struct ItemRepositoryTransaction<TKey, TValue>(
     public List<RepositoryChange<TKey, TValue>>? ListChange = default;
 }
 
-public static class ItemRepositoryTransaction {
+public static partial class ItemRepositoryTransaction {
+
+    public static ImmutableDictionary<TKey, TValue>.Builder GetBuilder<TKey, TValue>(ref ItemRepositoryTransaction<TKey, TValue> that) where TKey : notnull {
+        return that.Builder ??= that.State.ToBuilder();
+    }
+
     public static bool Add<TKey, TValue>(
         ref ItemRepositoryTransaction<TKey, TValue> that,
         TKey key, TValue value
         ) where TKey : notnull {
-        var builder = that.Builder ??= that.State.ToBuilder();
+        var builder = GetBuilder(ref that);
         bool result;
         if (builder.ContainsKey(key)) {
             result = false;
@@ -172,7 +177,7 @@ public static class ItemRepositoryTransaction {
         ref ItemRepositoryTransaction<TKey, TValue> that,
         TKey key, TValue value
     ) where TKey : notnull {
-        var builder = that.Builder ??= that.State.ToBuilder();
+        var builder = GetBuilder(ref that);
         bool result;
         if (builder.ContainsKey(key)) {
             result = false;
@@ -191,7 +196,7 @@ public static class ItemRepositoryTransaction {
         ref ItemRepositoryTransaction<TKey, TValue> that,
         TKey key
     ) where TKey : notnull {
-        var builder = that.Builder ??= that.State.ToBuilder();
+        var builder = GetBuilder(ref that);
         bool result;
         if (builder.TryGetValue(key, out var oldValue)) {
             builder.Remove(key);
@@ -211,6 +216,7 @@ public static class ItemRepositoryTransaction {
             return that.State;
         } else {
             that.State = that.Builder.ToImmutable();
+            that.Builder = null;
             return that.State;
         }
     }

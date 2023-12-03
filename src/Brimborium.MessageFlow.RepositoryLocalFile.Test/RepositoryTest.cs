@@ -1,6 +1,6 @@
 ﻿#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
 
-namespace Brimborium.MessageFlow.Test.Repositories;
+namespace Brimborium.MessageFlow.RepositoryLocalFile.Test;
 
 public record class HackRepositoryState
     (
@@ -15,21 +15,35 @@ public record class HackRepositoryState
             );
 }
 
-public class HackRepositoryPersitence : IRepositoryPersitence<HackRepositoryState, HackRepositoryTransaction> {
+public class HackRepositoryPersitence(
+    LocalFileRepositoryPersitence? localFileRepositoryPersitence
+    ) : IRepositoryPersitence<HackRepositoryState, HackRepositoryTransaction> {
     public HackRepositoryState State = HackRepositoryState.Create();
     public HackRepositoryTransaction? Transaction = default;
+    private LocalFileRepositoryPersitence<HackRepositoryState>? _Persitence = localFileRepositoryPersitence?.GetForType<HackRepositoryState>("Hack");
 
     public HackRepositoryState CreateEmptyState()
         => HackRepositoryState.Create();
 
-    public ValueTask<HackRepositoryState> LoadAsync(CancellationToken cancellationToken) {
-        return ValueTask.FromResult(this.State);
+    public async ValueTask<HackRepositoryState> LoadAsync(CancellationToken cancellationToken) {
+        if (this._Persitence is null) {
+            return this.State;
+        } else {
+            var result = await this._Persitence.LoadAsync(cancellationToken);
+            return (result ?? CreateEmptyState());
+        }
     }
 
-    public ValueTask SaveAsync(HackRepositoryTransaction transaction, HackRepositoryState oldState, HackRepositoryState nextState, CancellationToken cancellationToken) {
+    public async ValueTask SaveAsync(HackRepositoryTransaction transaction, HackRepositoryState oldState, HackRepositoryState nextState, CancellationToken cancellationToken) {
         this.State = nextState;
         this.Transaction = transaction;
-        return ValueTask.CompletedTask;
+        if (this._Persitence is null) {
+        } else {
+            var commitable=await this._Persitence.SaveAsync(nextState, cancellationToken);
+            if (commitable is not null) {
+                commitable.Commit();
+            }
+        }
     }
 }
 
@@ -145,8 +159,8 @@ public class RepositoryTest {
             loggingBuilder.SetMinimumLevel(LogLevel.Trace);
         });
         using var serviceProvider = serviceCollection.BuildServiceProvider();
-
-        var hackRepositoryPersitence = new HackRepositoryPersitence();
+        
+        var hackRepositoryPersitence = new HackRepositoryPersitence(default);
         var logger = serviceProvider.GetRequiredService<ILogger<RepositoryTest>>();
         var hackRepository = new HackRepository(hackRepositoryPersitence, HackRepositoryState.Create(), logger);
 
@@ -200,7 +214,7 @@ public class RepositoryTest {
         });
         using var serviceProvider = serviceCollection.BuildServiceProvider();
 
-        var hackRepositoryPersitence = new HackRepositoryPersitence();
+        var hackRepositoryPersitence = new HackRepositoryPersitence(default);
         var logger = serviceProvider.GetRequiredService<ILogger<RepositoryTest>>();
         var hackRepository = new HackRepository(hackRepositoryPersitence, HackRepositoryState.Create(), logger);
 
