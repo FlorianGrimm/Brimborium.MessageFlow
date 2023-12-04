@@ -12,7 +12,14 @@ public class FileNameUtilities {
         return result;
     }
 
-    public static List<string> GetLatestStateFileName(FileInfo[] listFileInfo) {
+    public static Optional<StateDiffFileNames> GetLatestStateFileNameFromFolder(string folderPath) {
+        System.IO.DirectoryInfo di = new DirectoryInfo(folderPath);
+        var listFileInfo = di.GetFiles("*.json");
+        var optStateDiffFileNames = FileNameUtilities.GetLatestStateFileName(listFileInfo);
+        return optStateDiffFileNames;
+    }
+
+    public static Optional<StateDiffFileNames> GetLatestStateFileName(FileInfo[] listFileInfo) {
         var listFileName = ConvertToListFileName(listFileInfo);
         return GetLatestStateFileName(listFileName);
     }
@@ -25,24 +32,28 @@ public class FileNameUtilities {
         return listFileName;
     }
 
-    public static List<string> GetLatestStateFileName(List<string> listFileName) {
-        List<string> result = new();
+    public static Optional<StateDiffFileNames> GetLatestStateFileName(List<string> listFileName) {
+        List<string> listDiffFileName = new();
         listFileName.Sort(StringComparer.OrdinalIgnoreCase);
         for (int idx = listFileName.Count - 1; 0 <= idx; idx--) {
             var fileName = listFileName[idx];
             var suffix = fileName.AsSpan()[27..^5];
             if ((suffix.Length == 5)
                 && suffix.StartsWith("state".AsSpan())) {
-                result.Add(fileName);
-                break;
+                return new (new(listDiffFileName, fileName));
             }
             if ((suffix.Length == 4)
                 && suffix.StartsWith("diff".AsSpan())) {
-                result.Add(fileName);
+                listDiffFileName.Add(fileName);
                 continue;
             }
-            //if (StringComparer.OrdinalIgnoreCase.Equals("state", suffix)) { break;}
         }
-        return result;
+        if (listDiffFileName.Count == 0) {
+            return new();
+        } else {
+            return new(new(listDiffFileName, string.Empty));
+        }
     }
 }
+
+public sealed record StateDiffFileNames(List<string> ListDiffFileName, string StateFileName);

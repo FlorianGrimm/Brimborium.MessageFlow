@@ -1,5 +1,7 @@
 ﻿#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
 
+using Brimborium.ReturnValue;
+
 namespace Brimborium.MessageFlow.Test.Repositories;
 
 public record class HackRepositoryState
@@ -22,8 +24,8 @@ public class HackRepositoryPersitence : IRepositoryPersitence<HackRepositoryStat
     public HackRepositoryState CreateEmptyState()
         => HackRepositoryState.Create();
 
-    public ValueTask<HackRepositoryState> LoadAsync(CancellationToken cancellationToken) {
-        return ValueTask.FromResult(this.State);
+    public ValueTask<Optional<HackRepositoryState>> LoadAsync(CancellationToken cancellationToken) {
+        return ValueTask.FromResult<Optional<HackRepositoryState>>(new(this.State));
     }
 
     public ValueTask SaveAsync(HackRepositoryTransaction transaction, HackRepositoryState oldState, HackRepositoryState nextState, CancellationToken cancellationToken) {

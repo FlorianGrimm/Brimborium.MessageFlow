@@ -6,12 +6,11 @@ public abstract class JsonUtilities {
     public JsonUtilities() {
     }
 
-    public abstract void Serialize<T>(Stream stream, T value);
+    public abstract Task SerializeAsync<T>(Stream stream, T value, CancellationToken cancellationToken);
 
-    public abstract T? Deserialize<T>(Stream stream);
+    public abstract Task<Optional<T>> DeserializeAsync<T>(Stream stream, CancellationToken cancellationToken);
 
-
-    public abstract Task SerializeLines<T>(Stream stream, List<T> listValue, CancellationToken cancellationToken);
+    public abstract Task SerializeLinesAsync<T>(Stream stream, List<T> listValue, CancellationToken cancellationToken);
 
     public abstract Task<List<T>> DeserializeLines<T>(Stream stream, CancellationToken cancellationToken);
 }

@@ -40,6 +40,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.MessageFlow.Aspire.ServiceDefaults", "src\Brimborium.MessageFlow.Aspire\Brimborium.MessageFlow.Aspire.ServiceDefaults\Brimborium.MessageFlow.Aspire.ServiceDefaults.csproj", "{2E4F2E5B-787A-44D9-BD00-D8FFC01D7095}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "99aspire", "99aspire", "{972C4753-2AD3-4457-9AEB-51BC0E8F1733}"
+	ProjectSection(SolutionItems) = preProject
+		src\Brimborium.MessageFlow.RepositoryLocalFile.Test\GlobalUsings.cs = src\Brimborium.MessageFlow.RepositoryLocalFile.Test\GlobalUsings.cs
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FrontEnd", "FrontEnd\FrontEnd.csproj", "{3214E01D-32E2-4C2B-915F-6E39DCCB0405}"
 EndProject
@@ -47,7 +50,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.OpenApi.Generato
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.MessageFlow.RepositoryLocalFile", "src\Brimborium.MessageFlow.RepositoryLocalFile\Brimborium.MessageFlow.RepositoryLocalFile.csproj", "{E7054256-A69F-4DC5-8696-20E4D8DF5368}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brimborium.MessageFlow.RepositoryLocalFile.Test", "src\Brimborium.MessageFlow.RepositoryLocalFile.Test\Brimborium.MessageFlow.RepositoryLocalFile.Test.csproj", "{F05C305E-C798-445B-B219-A90B92698E6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brimborium.MessageFlow.RepositoryLocalFile.Test", "src\Brimborium.MessageFlow.RepositoryLocalFile.Test\Brimborium.MessageFlow.RepositoryLocalFile.Test.csproj", "{F05C305E-C798-445B-B219-A90B92698E6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -10,6 +10,7 @@ global using global::Microsoft.Extensions.Options;
 global using global::Microsoft.Extensions.Primitives;
 global using global::Microsoft.Extensions.ObjectPool;
 global using global::Microsoft.Extensions.Hosting;
+global using global::Brimborium.ReturnValue;
 
 global using global::System.Collections.Immutable;
 global using global::System.Diagnostics.CodeAnalysis;
@@ -18,6 +19,7 @@ global using global::System.Text;
 global using global::System.Text.Json;
 global using global::System.Text.Json.Serialization;
 global using global::System.Threading.Channels;
+
 
 global using global::Xunit;
 global using global::Xunit.Abstractions;

@@ -23,15 +23,17 @@ public class FileNameUtilitiesTest {
         Assert.Equal(@"c:\temp\1970-01-01-00-00-00-000000-abcd.temp", act);
     }
 
+    /*
     [Fact]
     public void FileNameUtilities_1() {
         Assert.Equal(
             @"C:\github.com\FlorianGrimm\Brimborium.MessageFlow\src\Brimborium.MessageFlow.RepositoryLocalFile.Test\TestData\",
             TestUtility.GetTestDataPath(""));
     }
+    */
 
     [Fact]
-    public void FileNameUtilities__002() {
+    public void FileNameUtilities_GetLatestStateFileName_002() {
         List<string> listFileName = new() {
             "2023-12-24-17-59-21-222222-diff.json",
             "2023-01-01-18-00-00-000000-state.json",
@@ -39,7 +41,9 @@ public class FileNameUtilitiesTest {
             "2022-06-02-19-42-42-111111-state.json"
         };
         var act = FileNameUtilities.GetLatestStateFileName(listFileName);
-        Assert.Equal(2, act.Count);
+        Assert.True(act.TryGetValue(out var stateDiffFileNames));
+        Assert.True(!string.IsNullOrEmpty(stateDiffFileNames.StateFileName));
+        Assert.Equal(1, stateDiffFileNames.ListDiffFileName.Count);
     }
 
     [Fact]
@@ -52,7 +56,8 @@ public class FileNameUtilitiesTest {
         });
         // FileNameUtilities.GetLatestStateFileName(listFileInfo);
         var act = FileNameUtilities.GetLatestStateFileName(listFileInfo);
-        Assert.Equal(1, act.Count);
-
+        Assert.True(act.TryGetValue(out var stateDiffFileNames));
+        Assert.True(!string.IsNullOrEmpty(stateDiffFileNames.StateFileName));
+        Assert.Equal(0, stateDiffFileNames.ListDiffFileName.Count);
     }
 }

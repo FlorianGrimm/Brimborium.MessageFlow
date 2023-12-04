@@ -1,4 +1,5 @@
-﻿namespace Brimborium.MessageFlow.RepositoryLocalFile;
+﻿
+namespace Brimborium.MessageFlow.RepositoryLocalFile;
 
 public class SystemTextJsonUtilities : JsonUtilities {
     private System.Text.Json.JsonSerializerOptions _Options;
@@ -13,7 +14,7 @@ public class SystemTextJsonUtilities : JsonUtilities {
         this._Options.WriteIndented = false;
     }
 
-    public void Add(JsonConverter jsonConverter) {
+    public void AddJsonConverter(JsonConverter jsonConverter) {
         this._Options.Converters.Add(jsonConverter);
         this._IsChanged = true;
     }
@@ -30,35 +31,33 @@ public class SystemTextJsonUtilities : JsonUtilities {
         }
     }
 
-    public override void Serialize<T>(Stream stream, T value) {
-        System.Text.Json.JsonSerializer.Serialize<T>(stream, value, this.GetOptions());
+    public override async Task SerializeAsync<T>(Stream stream, T value, CancellationToken cancellationToken) {
+        await System.Text.Json.JsonSerializer.SerializeAsync<T>(
+            stream,
+            value,
+            this.GetOptions(),
+            cancellationToken);
     }
 
-
-    public override T? Deserialize<T>(Stream stream) where T : default {
-        var result = System.Text.Json.JsonSerializer.Deserialize<T>(stream, this.GetOptions());
-        return result;
+    public override async Task<Optional<T>> DeserializeAsync<T>(Stream stream, CancellationToken cancellationToken) {
+        var result = await System.Text.Json.JsonSerializer.DeserializeAsync<T>(
+            stream,
+            this.GetOptions(),
+            cancellationToken);
+        if (result is null) {
+            return new Optional<T>();
+        } else {
+            return result.AsOptional();
+        }
     }
 
-
-    /*
-    private static byte[] _CommandAdd = ("add"u8).ToArray();
-    private static byte[] _CommandRem = ("rem"u8).ToArray();
-    private static byte[] _CommandUpd = ("upd"u8).ToArray();
-    */
-
-    // add del upd
-    // add 01234567 
-    // 0123456789123
-
-
-    public override async Task SerializeLines<T>(Stream stream, List<T> listValue, CancellationToken cancellationToken) {
+    public override async Task SerializeLinesAsync<T>(Stream stream, List<T> listValue, CancellationToken cancellationToken) {
         var jsonSerializerOptions = this.GetOptions();
 
         foreach (var item in listValue) {
-            System.Text.Json.JsonSerializer.Serialize<T>(stream, item, jsonSerializerOptions);
-            stream.WriteByte(10);
+            await System.Text.Json.JsonSerializer.SerializeAsync<T>(stream, item, jsonSerializerOptions);
             stream.WriteByte(13);
+            stream.WriteByte(10);
         }
         await stream.FlushAsync();
     }
@@ -81,6 +80,7 @@ public class SystemTextJsonUtilities : JsonUtilities {
                 byte b = buffer[pos];
                 if (b == 10 || b == 13) {
                     if (state == 2) {
+                        //skip the second
                         idxStart = pos;
                         continue;
                     } else {
@@ -90,14 +90,7 @@ public class SystemTextJsonUtilities : JsonUtilities {
                             idxStart = pos;
                         }
                         // Deserialize
-                        {
-                            currentLineStream.Position = 0;
-                            var item = System.Text.Json.JsonSerializer.Deserialize<T>(currentLineStream, jsonSerializerOptions);
-                            if (item is not null) {
-                                result.Add(item);
-                            }
-                            currentLineStream.Dispose();
-                        }
+                        DeserializeItem(currentLineStream, result, jsonSerializerOptions);
                         currentLineStream = Manager.GetStream();
                     }
                 } else {
@@ -106,15 +99,18 @@ public class SystemTextJsonUtilities : JsonUtilities {
             }
         }
         if (currentLineStream.Position > 0) {
-            // Deserialize
-            currentLineStream.Position = 0;
-            var item = System.Text.Json.JsonSerializer.Deserialize<T>(currentLineStream, jsonSerializerOptions);
-            if (item is not null) {
-                result.Add(item);
-            }
-            currentLineStream.Dispose();
+            DeserializeItem(currentLineStream, result, jsonSerializerOptions);
         }
 
         return result;
+    }
+
+    private void DeserializeItem<T>(MemoryStream currentLineStream, List<T> result, JsonSerializerOptions jsonSerializerOptions) {
+        currentLineStream.Position = 0;
+        var item = System.Text.Json.JsonSerializer.Deserialize<T>(currentLineStream, jsonSerializerOptions);
+        if (item is not null) {
+            result.Add(item);
+        }
+        currentLineStream.Dispose();
     }
 }

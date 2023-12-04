@@ -1,12 +1,15 @@
-﻿namespace Brimborium.MessageFlow.Repositories;
+﻿using System.Runtime.InteropServices;
 
-public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction> 
+namespace Brimborium.MessageFlow.Repositories;
+
+public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
     : DisposableWithState
     , IRepository<TRepositoryState, TRepositoryTransaction>
     where TRepositoryState : class, IRepositoryState
     where TRepositoryTransaction : class, IRepositoryTransaction<TRepositoryState> {
 
-    protected SemaphoreSlim _Lock;
+    protected SemaphoreSlim _LockState;
+    protected SemaphoreSlim _LockSave;
     protected TRepositoryState _State;
     protected readonly IRepositoryPersitence<TRepositoryState, TRepositoryTransaction> _RepositoryPersitence;
     protected TRepositoryTransaction? _CurrentTransaction;
@@ -16,7 +19,8 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
         TRepositoryState? repositoryState,
         ILogger logger
         ) : base(logger) {
-        this._Lock = new SemaphoreSlim(1, 1);
+        this._LockState = new SemaphoreSlim(1, 1);
+        this._LockSave = new SemaphoreSlim(1, 1);
         this._State = repositoryState ?? repositoryPersitence.CreateEmptyState();
         this._RepositoryPersitence = repositoryPersitence;
     }
@@ -26,9 +30,9 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
     protected abstract TRepositoryTransaction CreateRepositoryTransaction(ITransactionFinalizer<TRepositoryState, TRepositoryTransaction> transactionFinalizer);
 
     public async ValueTask<TRepositoryTransaction> CreateTransaction(CancellationToken cancellationToken) {
-        try { 
-            await this._Lock.WaitAsync(cancellationToken);
-        } catch (OperationCanceledException){
+        try {
+            await this._LockState.WaitAsync(cancellationToken);
+        } catch (OperationCanceledException) {
             // TODO: log
             throw;
         }
@@ -40,16 +44,16 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
             return result;
         } catch {
             this._CurrentTransaction = default;
-            this._Lock.Release();
+            this._LockState.Release();
             throw;
         }
     }
 
     protected override bool Dispose(bool disposing) {
         if (base.Dispose(disposing)) {
-            using (var l = this._Lock) {
+            using (var l = this._LockState) {
                 if (disposing) {
-                    this._Lock = null!;
+                    this._LockState = null!;
                 }
             }
             return true;
@@ -61,23 +65,33 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
     internal async ValueTask CommitAsync(TRepositoryTransaction transaction, TRepositoryState state, CancellationToken cancellationToken) {
         var oldState = this._State;
         this._State = state;
-        this._Lock.Release();
-        await this.SaveAsync(transaction, oldState, state, cancellationToken);
+        await this._LockSave.WaitAsync();
+        this._LockState.Release();
+        try {
+            await this.SaveAsync(transaction, oldState, state, cancellationToken);
+        } finally { 
+            this._LockSave.Release();
+        }
         //this._Logger.LogInformation("RepositoryState saved");
     }
 
     internal void Cancel(TRepositoryTransaction transaction) {
         if (ReferenceEquals(this._CurrentTransaction, transaction)) {
-            this._Lock.Release();
+            this._LockState.Release();
         }
     }
 
     public async ValueTask LoadAsync(CancellationToken cancellationToken) {
-        await this._Lock.WaitAsync(cancellationToken);
+        await this._LockState.WaitAsync(cancellationToken);
         try {
-            this._State = await this._RepositoryPersitence.LoadAsync(cancellationToken);
+            var optState = await this._RepositoryPersitence.LoadAsync(cancellationToken);
+            if (optState.TryGetValue(out var loaded)) {
+                this._State = loaded;
+            } else {
+                this._State = this._RepositoryPersitence.CreateEmptyState();
+            }
         } finally {
-            this._Lock.Release();
+            this._LockState.Release();
         }
     }
     protected abstract ValueTask SaveAsync(
@@ -104,6 +118,8 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
 
             if (owner is not null && transaction is not null) {
                 await owner.CommitAsync(transaction, state, cancellationToken);
+            } else {
+                throw new Exception();
             }
         }
 
@@ -126,7 +142,7 @@ public abstract class BaseRepositoryTransaction<TRepositoryState>(ILogger logger
     where TRepositoryState : class, IRepositoryState {
 
     public abstract ValueTask CommitAsync(CancellationToken cancellationToken);
-    
+
     public abstract void Cancel();
 }
 
@@ -212,7 +228,7 @@ public static partial class ItemRepositoryTransaction {
     public static ImmutableDictionary<TKey, TValue> Finalize<TKey, TValue>(
         ref ItemRepositoryTransaction<TKey, TValue> that
     ) where TKey : notnull {
-        if (that.Builder is null) { 
+        if (that.Builder is null) {
             return that.State;
         } else {
             that.State = that.Builder.ToImmutable();
@@ -220,4 +236,42 @@ public static partial class ItemRepositoryTransaction {
             return that.State;
         }
     }
+}
+
+public static partial class FullDiffRepositoryStateOperationUtitity {
+    //FullDiffRepositoryStateOperation<TFull, TDiff>
+    //where TFull : class
+    //where TDiff : class
+    public static ImmutableDictionary<TKey, TValue> ApplyChanges<TKey, TValue>(
+        ImmutableDictionary<TKey, TValue> stateAnyThing, 
+        List<RepositoryChange<TKey, TValue>>? diffStateAnyThing,
+        ref int diffCount
+        ) 
+        where TKey:notnull
+        {
+        if (diffStateAnyThing is not null) {
+            var builder = stateAnyThing.ToBuilder();
+            diffCount += diffStateAnyThing.Count;
+            foreach (var repositoryChange in diffStateAnyThing) {
+                if (repositoryChange.Mode == RepositoryChangeMode.Add) {
+                    builder.Add(repositoryChange.Key, repositoryChange.Value);
+                    continue;
+                }
+                if (repositoryChange.Mode == RepositoryChangeMode.Update) {
+                    builder[repositoryChange.Key] = repositoryChange.Value;
+                    continue;
+                }
+                if (repositoryChange.Mode == RepositoryChangeMode.Remove) {
+                    builder.Remove(repositoryChange.Key);
+                    continue;
+                }
+                // TODO: nice
+                throw new Exception();
+            }
+            return builder.ToImmutable();
+        } else {
+            return stateAnyThing;
+        }
+    }
+
 }

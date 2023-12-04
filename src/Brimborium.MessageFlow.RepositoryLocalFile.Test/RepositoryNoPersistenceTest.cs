@@ -1,67 +1,57 @@
 ﻿#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
-
 namespace Brimborium.MessageFlow.RepositoryLocalFile.Test;
 
-public record class HackRepositoryState
+public sealed record class HackNoPersistenceRepositoryState
     (
     ImmutableDictionary<int, string> SomeThing,
     ImmutableDictionary<int, string> AnyThing
     )
     : IRepositoryState {
-    public static HackRepositoryState Create()
-        => new HackRepositoryState(
+    public static HackNoPersistenceRepositoryState Create()
+        => new HackNoPersistenceRepositoryState(
             ImmutableDictionary<int, string>.Empty,
             ImmutableDictionary<int, string>.Empty
             );
 }
 
-public class HackRepositoryPersitence(
-    LocalFileRepositoryPersitence? localFileRepositoryPersitence
-    ) : IRepositoryPersitence<HackRepositoryState, HackRepositoryTransaction> {
-    public HackRepositoryState State = HackRepositoryState.Create();
-    public HackRepositoryTransaction? Transaction = default;
-    private LocalFileRepositoryPersitence<HackRepositoryState>? _Persitence = localFileRepositoryPersitence?.GetForType<HackRepositoryState>("Hack");
+public sealed class HackNoPersistenceRepositoryPersitence(
+    ) : IRepositoryPersitence<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction> {
+    public HackNoPersistenceRepositoryState State = HackNoPersistenceRepositoryState.Create();
+    public HackNoPersistenceRepositoryTransaction? Transaction = default;
 
-    public HackRepositoryState CreateEmptyState()
-        => HackRepositoryState.Create();
+    public HackNoPersistenceRepositoryState CreateEmptyState()
+        => HackNoPersistenceRepositoryState.Create();
 
-    public async ValueTask<HackRepositoryState> LoadAsync(CancellationToken cancellationToken) {
-        if (this._Persitence is null) {
-            return this.State;
-        } else {
-            var result = await this._Persitence.LoadAsync(cancellationToken);
-            return (result ?? CreateEmptyState());
-        }
+    public async ValueTask<Optional<HackNoPersistenceRepositoryState>> LoadAsync(CancellationToken cancellationToken) {
+        await ValueTask.CompletedTask;
+        return new Optional<HackNoPersistenceRepositoryState>(this.State);
     }
 
-    public async ValueTask SaveAsync(HackRepositoryTransaction transaction, HackRepositoryState oldState, HackRepositoryState nextState, CancellationToken cancellationToken) {
+    public ValueTask SaveAsync(HackNoPersistenceRepositoryTransaction transaction, HackNoPersistenceRepositoryState oldState, HackNoPersistenceRepositoryState nextState, CancellationToken cancellationToken) {
         this.State = nextState;
         this.Transaction = transaction;
-        if (this._Persitence is null) {
-        } else {
-            var commitable=await this._Persitence.SaveAsync(nextState, cancellationToken);
-            if (commitable is not null) {
-                commitable.Commit();
-            }
-        }
+        return ValueTask.CompletedTask;
     }
 }
 
-public class HackRepositoryTransaction : BaseRepositoryTransaction<HackRepositoryState> {
-    private ITransactionFinalizer<HackRepositoryState, HackRepositoryTransaction>? _TransactionFinalizer;
-    private HackRepositoryState _State;
+public sealed class HackNoPersistenceRepositoryTransaction : BaseRepositoryTransaction<HackNoPersistenceRepositoryState> {
+    private ITransactionFinalizer<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction>? _TransactionFinalizer;
+    private HackNoPersistenceRepositoryState _State;
     private ItemRepositoryTransaction<int, string> _AnyThing;
     private ItemRepositoryTransaction<int, string> _SomeThing;
 
-    public HackRepositoryTransaction(
-        ITransactionFinalizer<HackRepositoryState, HackRepositoryTransaction> transactionFinalizer,
-        HackRepositoryState state,
+    public HackNoPersistenceRepositoryTransaction(
+        ITransactionFinalizer<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction> transactionFinalizer,
+        HackNoPersistenceRepositoryState state,
         ILogger logger) : base(logger) {
         this._TransactionFinalizer = transactionFinalizer;
         this._State = state;
         this._AnyThing = new ItemRepositoryTransaction<int, string>(state.AnyThing);
         this._SomeThing = new ItemRepositoryTransaction<int, string>(state.SomeThing);
     }
+    public List<RepositoryChange<int, string>>? AnyThingListChange => this._AnyThing.ListChange;
+    public List<RepositoryChange<int, string>>? SomeThingListChange => this._SomeThing.ListChange;
+
 
     public bool SomeThingAdd(int key, string value) {
         ObjectDisposedException.ThrowIf(this._TransactionFinalizer is null, this);
@@ -120,36 +110,36 @@ public class HackRepositoryTransaction : BaseRepositoryTransaction<HackRepositor
     }
 }
 
-public class HackRepository : BaseRepository<HackRepositoryState, HackRepositoryTransaction> {
-    public HackRepository(
-        IRepositoryPersitence<HackRepositoryState, HackRepositoryTransaction> repositoryPersitence,
-        HackRepositoryState? repositoryState,
+public sealed class HackNoPersistenceRepository : BaseRepository<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction> {
+    public HackNoPersistenceRepository(
+        IRepositoryPersitence<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction> repositoryPersitence,
+        HackNoPersistenceRepositoryState? repositoryState,
         ILogger logger
         ) : base(repositoryPersitence, repositoryState, logger) {
     }
 
-    protected override HackRepositoryTransaction CreateRepositoryTransaction(ITransactionFinalizer<HackRepositoryState, HackRepositoryTransaction> transactionFinalizer) {
-        return new HackRepositoryTransaction(transactionFinalizer, this._State, this.Logger);
+    protected override HackNoPersistenceRepositoryTransaction CreateRepositoryTransaction(ITransactionFinalizer<HackNoPersistenceRepositoryState, HackNoPersistenceRepositoryTransaction> transactionFinalizer) {
+        return new HackNoPersistenceRepositoryTransaction(transactionFinalizer, this._State, this.Logger);
     }
 
     protected override async ValueTask SaveAsync(
-        HackRepositoryTransaction transaction,
-        HackRepositoryState oldState,
-        HackRepositoryState nextState,
+        HackNoPersistenceRepositoryTransaction transaction,
+        HackNoPersistenceRepositoryState oldState,
+        HackNoPersistenceRepositoryState nextState,
         CancellationToken cancellationToken) {
         await this._RepositoryPersitence.SaveAsync(transaction, oldState, nextState, cancellationToken);
     }
 }
 
-public class RepositoryTest {
+public class RepositoryNoPersistenceTest {
     private readonly ITestOutputHelper _TestOutputHelper;
 
-    public RepositoryTest(ITestOutputHelper testOutputHelper) {
+    public RepositoryNoPersistenceTest(ITestOutputHelper testOutputHelper) {
         this._TestOutputHelper = testOutputHelper;
     }
 
     [Fact]
-    public async Task RepositoryTest01() {
+    public async Task RepositoryFullTest01() {
         var serviceCollection = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         var inMemoryLoggerProvider = new Meziantou.Extensions.Logging.InMemory.InMemoryLoggerProvider();
         var xunitLoggerProvider = new Meziantou.Extensions.Logging.Xunit.XUnitLoggerProvider(this._TestOutputHelper);
@@ -159,10 +149,10 @@ public class RepositoryTest {
             loggingBuilder.SetMinimumLevel(LogLevel.Trace);
         });
         using var serviceProvider = serviceCollection.BuildServiceProvider();
-        
-        var hackRepositoryPersitence = new HackRepositoryPersitence(default);
-        var logger = serviceProvider.GetRequiredService<ILogger<RepositoryTest>>();
-        var hackRepository = new HackRepository(hackRepositoryPersitence, HackRepositoryState.Create(), logger);
+
+        var hackRepositoryPersitence = new HackNoPersistenceRepositoryPersitence();
+        var logger = serviceProvider.GetRequiredService<ILogger<RepositoryNoPersistenceTest>>();
+        var hackRepository = new HackNoPersistenceRepository(hackRepositoryPersitence, HackNoPersistenceRepositoryState.Create(), logger);
 
         var cancellationToken = CancellationToken.None;
 
@@ -203,7 +193,7 @@ public class RepositoryTest {
 
 
     [Fact]
-    public async Task RepositoryTest02_Parrallel() {
+    public async Task RepositoryFullTest02_Parrallel() {
         var serviceCollection = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         var inMemoryLoggerProvider = new Meziantou.Extensions.Logging.InMemory.InMemoryLoggerProvider();
         var xunitLoggerProvider = new Meziantou.Extensions.Logging.Xunit.XUnitLoggerProvider(this._TestOutputHelper);
@@ -214,9 +204,9 @@ public class RepositoryTest {
         });
         using var serviceProvider = serviceCollection.BuildServiceProvider();
 
-        var hackRepositoryPersitence = new HackRepositoryPersitence(default);
-        var logger = serviceProvider.GetRequiredService<ILogger<RepositoryTest>>();
-        var hackRepository = new HackRepository(hackRepositoryPersitence, HackRepositoryState.Create(), logger);
+        var hackRepositoryPersitence = new HackNoPersistenceRepositoryPersitence();
+        var logger = serviceProvider.GetRequiredService<ILogger<RepositoryNoPersistenceTest>>();
+        var hackRepository = new HackNoPersistenceRepository(hackRepositoryPersitence, HackNoPersistenceRepositoryState.Create(), logger);
 
         var cancellationToken = CancellationToken.None;
         TaskCompletionSource tcs1 = new();

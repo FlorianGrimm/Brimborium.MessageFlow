@@ -10,6 +10,10 @@ public interface IRepository<TRepositoryState, TRepositoryTransaction>
 public interface IRepositoryState {
 }
 
+public interface IRepositoryStateDiff {
+}
+
+
 public interface IRepositoryTransaction<TRepositoryState>
     : IDisposableWithState
     where TRepositoryState : class, IRepositoryState {
@@ -22,7 +26,7 @@ public interface IRepositoryTransaction<TRepositoryState>
 public interface IRepositoryPersitence<TRepositoryState, TRepositoryTransaction>
     where TRepositoryState : class, IRepositoryState
     where TRepositoryTransaction : class, IRepositoryTransaction<TRepositoryState> {
-    ValueTask<TRepositoryState> LoadAsync(
+    ValueTask<Optional<TRepositoryState>> LoadAsync(
         CancellationToken cancellationToken);
 
     ValueTask SaveAsync(
