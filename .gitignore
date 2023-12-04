@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+src/Brimborium.MessageFlow.RepositoryLocalFile.Test/TestData/Full001/
+src/Brimborium.MessageFlow.RepositoryLocalFile.Test/TestData/FullDiv001/
+src/Brimborium.MessageFlow.RepositoryLocalFile.Test/TestData/FullDiv002/

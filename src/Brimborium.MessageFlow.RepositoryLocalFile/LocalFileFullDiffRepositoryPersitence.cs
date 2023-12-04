@@ -42,7 +42,7 @@ public class LocalFileFullDiffRepositoryPersitence<TFull, TDiff>(
                 var optFull = await this.LoadFullStateAsync(stateFullName, cancellationToken);
                 if (optFull.TryGetValue(out var resultState)) {
                     state = operation.SetFullState(resultState);
-                        
+
                 } else {
                     return NoValue.Value;
                 }
@@ -72,25 +72,20 @@ public class LocalFileFullDiffRepositoryPersitence<TFull, TDiff>(
                 var result = await jsonUtilities.DeserializeAsync<TFull>(fileStream, cancellationToken);
                 return result;
             }
-        } else {
-            return new();
         }
+        return new();
 
     }
     private async Task<Optional<TDiff>> LoadDiffStateAsync(string filename, CancellationToken cancellationToken) {
         var fi = new System.IO.FileInfo(filename);
         if (fi.Exists) {
-            // TODO:
-            await Task.CompletedTask;
-            //using (var fileStream = System.IO.File.OpenRead(filename)) {
-            //    var result = await jsonUtilities.Deserialize<T>(fileStream, cancellationToken);
-            //    return result;
-            //}
-            return new();
-        } else {
+            using (var fileStream = System.IO.File.OpenRead(filename)) {
+                var result = await jsonUtilities.DeserializeAsync<TDiff>(fileStream, cancellationToken);
+                return result;
+            }
+        } else { 
             return new();
         }
-
     }
 
     public async Task<ICommitable> SaveFullStateAsync(TFull value, CancellationToken cancellationToken) {
