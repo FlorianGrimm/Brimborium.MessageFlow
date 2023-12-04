@@ -37,7 +37,12 @@ public sealed class HackFullRepositoryPersitence(
         }
     }
 
-    public async ValueTask SaveAsync(HackFullRepositoryTransaction transaction, HackFullRepositoryState oldState, HackFullRepositoryState nextState, CancellationToken cancellationToken) {
+    public async ValueTask SaveAsync(
+        RepositorySaveMode saveMode, 
+        HackFullRepositoryTransaction transaction, 
+        HackFullRepositoryState oldState, 
+        HackFullRepositoryState nextState, 
+        CancellationToken cancellationToken) {
         this.State = nextState;
         this.Transaction = transaction;
         if (this._Persitence is null) {
@@ -104,7 +109,7 @@ public sealed class HackFullRepositoryTransaction : BaseRepositoryTransaction<Ha
         return ItemRepositoryTransaction.Remove(ref this._AnyThing, key);
     }
 
-    public override async ValueTask CommitAsync(CancellationToken cancellationToken) {
+    public override async ValueTask CommitAsync(RepositorySaveMode saveMode, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._TransactionFinalizer is null, this);
 
         var transactionFinalizer = this._TransactionFinalizer;
@@ -113,7 +118,7 @@ public sealed class HackFullRepositoryTransaction : BaseRepositoryTransaction<Ha
             SomeThing = ItemRepositoryTransaction.Finalize(ref this._SomeThing),
             AnyThing = ItemRepositoryTransaction.Finalize(ref this._AnyThing)
         };
-        await transactionFinalizer.CommitAsync(nextState, cancellationToken);
+        await transactionFinalizer.CommitAsync(saveMode, nextState, cancellationToken);
     }
 
     public override void Cancel() {
@@ -132,17 +137,17 @@ public sealed class HackFullRepository : BaseRepository<HackFullRepositoryState,
         ILogger logger
         ) : base(repositoryPersitence, repositoryState, logger) {
     }
-
     protected override HackFullRepositoryTransaction CreateRepositoryTransaction(ITransactionFinalizer<HackFullRepositoryState, HackFullRepositoryTransaction> transactionFinalizer) {
         return new HackFullRepositoryTransaction(transactionFinalizer, this._State, this.Logger);
     }
 
     protected override async ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
         HackFullRepositoryTransaction transaction,
         HackFullRepositoryState oldState,
         HackFullRepositoryState nextState,
         CancellationToken cancellationToken) {
-        await this._RepositoryPersitence.SaveAsync(transaction, oldState, nextState, cancellationToken);
+        await this._RepositoryPersitence.SaveAsync(saveMode, transaction, oldState, nextState, cancellationToken);
     }
 }
 
@@ -177,7 +182,7 @@ public class LocalFileFullRepositoryPersitenceTest {
             using (var transaction = await hackRepository.CreateTransaction(CancellationToken.None)) {
                 _ = transaction.AnyThingUpdate(1, "one");
                 _ = transaction.AnyThingUpdate(2, magicValue);
-                await transaction.CommitAsync(CancellationToken.None);
+                await transaction.CommitAsync(RepositorySaveMode.Auto, CancellationToken.None);
             }
         }
 

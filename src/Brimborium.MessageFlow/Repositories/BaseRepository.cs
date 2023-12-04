@@ -62,13 +62,17 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
         }
     }
 
-    internal async ValueTask CommitAsync(TRepositoryTransaction transaction, TRepositoryState state, CancellationToken cancellationToken) {
+    internal async ValueTask CommitAsync(
+        RepositorySaveMode saveMode, 
+        TRepositoryTransaction transaction, 
+        TRepositoryState state, 
+        CancellationToken cancellationToken) {
         var oldState = this._State;
         this._State = state;
         await this._LockSave.WaitAsync();
         this._LockState.Release();
         try {
-            await this.SaveAsync(transaction, oldState, state, cancellationToken);
+            await this.SaveAsync(saveMode, transaction, oldState, state, cancellationToken);
         } finally { 
             this._LockSave.Release();
         }
@@ -95,6 +99,7 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
         }
     }
     protected abstract ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
         TRepositoryTransaction transaction,
         TRepositoryState oldState,
         TRepositoryState nextState,
@@ -110,14 +115,14 @@ public abstract class BaseRepository<TRepositoryState, TRepositoryTransaction>
             this._Transaction = transaction;
         }
 
-        public async ValueTask CommitAsync(TRepositoryState state, CancellationToken cancellationToken) {
+        public async ValueTask CommitAsync(RepositorySaveMode saveMode, TRepositoryState state, CancellationToken cancellationToken) {
             var owner = this._Owner;
             this._Owner = default;
             var transaction = this._Transaction;
             this._Transaction = default;
 
             if (owner is not null && transaction is not null) {
-                await owner.CommitAsync(transaction, state, cancellationToken);
+                await owner.CommitAsync(saveMode, transaction, state, cancellationToken);
             } else {
                 throw new Exception();
             }
@@ -141,7 +146,7 @@ public abstract class BaseRepositoryTransaction<TRepositoryState>(ILogger logger
     , IRepositoryTransaction<TRepositoryState>
     where TRepositoryState : class, IRepositoryState {
 
-    public abstract ValueTask CommitAsync(CancellationToken cancellationToken);
+    public abstract ValueTask CommitAsync(RepositorySaveMode saveMode, CancellationToken cancellationToken);
 
     public abstract void Cancel();
 }

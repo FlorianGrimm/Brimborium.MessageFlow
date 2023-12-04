@@ -52,7 +52,7 @@ public sealed class HackFullDiffRepositoryPersitence(
         }
     }
 
-    public async ValueTask SaveAsync(HackFullDiffRepositoryTransaction transaction, HackFullDiffRepositoryState oldState, HackFullDiffRepositoryState nextState, CancellationToken cancellationToken) {
+    public async ValueTask SaveAsync(RepositorySaveMode saveMode, HackFullDiffRepositoryTransaction transaction, HackFullDiffRepositoryState oldState, HackFullDiffRepositoryState nextState, CancellationToken cancellationToken) {
         this.State = nextState;
         this.Transaction = transaction;
         if (this._Persitence is null) {
@@ -60,7 +60,12 @@ public sealed class HackFullDiffRepositoryPersitence(
             var countTransaction = (transaction.AnyThingListChange?.Count ?? 0)
                 + (transaction.SomeThingListChange?.Count ?? 0);
             var countNextState = nextState.AnyThing.Count + nextState.SomeThing.Count;
-            if (countNextState > 100 && countTransaction < 10 && this._DiffCount < 100) {
+            if (saveMode == RepositorySaveMode.Auto) {
+                if (countNextState > 100 && countTransaction < 10 && this._DiffCount < 100) {
+                    saveMode = RepositorySaveMode.Diff;
+                }
+            }
+            if (saveMode == RepositorySaveMode.Diff) {
                 var diffState = new HackFullDiffRepositoryDiffState(
                     SomeThing: transaction.SomeThingListChange,
                     AnyThing: transaction.AnyThingListChange
@@ -157,7 +162,7 @@ public sealed class HackFullDiffRepositoryTransaction : BaseRepositoryTransactio
         return ItemRepositoryTransaction.Remove(ref this._AnyThing, key);
     }
 
-    public override async ValueTask CommitAsync(CancellationToken cancellationToken) {
+    public override async ValueTask CommitAsync(RepositorySaveMode saveMode, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._TransactionFinalizer is null, this);
 
         var transactionFinalizer = this._TransactionFinalizer;
@@ -166,7 +171,7 @@ public sealed class HackFullDiffRepositoryTransaction : BaseRepositoryTransactio
             SomeThing = ItemRepositoryTransaction.Finalize(ref this._SomeThing),
             AnyThing = ItemRepositoryTransaction.Finalize(ref this._AnyThing)
         };
-        await transactionFinalizer.CommitAsync(nextState, cancellationToken);
+        await transactionFinalizer.CommitAsync(saveMode, nextState, cancellationToken);
     }
 
     public override void Cancel() {
@@ -191,14 +196,16 @@ public sealed class HackFullDiffRepository : BaseRepository<HackFullDiffReposito
     }
 
     protected override async ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
         HackFullDiffRepositoryTransaction transaction,
         HackFullDiffRepositoryState oldState,
         HackFullDiffRepositoryState nextState,
         CancellationToken cancellationToken) {
         await this._RepositoryPersitence.SaveAsync(
-            transaction, 
-            oldState, 
-            nextState, 
+            saveMode,
+            transaction,
+            oldState,
+            nextState,
             cancellationToken);
     }
 }
@@ -235,21 +242,21 @@ public class LocalFileFullDiffRepositoryPersitenceTest {
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingAdd(1, "one");
             transaction.AnyThingAdd(2, "two");
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(2, hackRepository.State.AnyThing.Count);
 
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingUpdate(1, "onemore");
             transaction.AnyThingAdd(3, "three");
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(3, hackRepository.State.AnyThing.Count);
         Assert.Equal("onemore", hackRepository.State.AnyThing[1]);
 
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingRemove(1);
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(2, hackRepository.State.AnyThing.Count);
         Assert.Equal("two", hackRepository.State.AnyThing[2]);
@@ -296,7 +303,7 @@ public class LocalFileFullDiffRepositoryPersitenceTest {
                 for (int i = 0; i < 10000; i++) {
                     transaction.AnyThingAdd(i, "one");
                 }
-                await transaction.CommitAsync(cancellationToken);
+                await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
             }
         });
 
@@ -306,7 +313,7 @@ public class LocalFileFullDiffRepositoryPersitenceTest {
                 for (int i = 10000; i < 20000; i++) {
                     transaction.AnyThingAdd(i, "two");
                 }
-                await transaction.CommitAsync(cancellationToken);
+                await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
             }
         });
 
@@ -314,5 +321,22 @@ public class LocalFileFullDiffRepositoryPersitenceTest {
         await t1;
         await t2;
         Assert.Equal(20000, hackRepository.State.AnyThing.Count);
+        {
+            using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
+                for (int i = 20000; i < 20050; i++) {
+                    transaction.AnyThingAdd(i, "three");
+                }
+                await transaction.CommitAsync(RepositorySaveMode.Diff, cancellationToken);
+            }
+        }
+
+        {
+            var localFileRepositoryPersitence2 = new LocalFileRepositoryPersitence(folderPath, jsonUtilities, logger);
+            var hackRepositoryPersitence2 = new HackFullDiffRepositoryPersitence(localFileRepositoryPersitence2, logger);
+            var hackRepository2 = new HackFullDiffRepository(hackRepositoryPersitence, HackFullDiffRepositoryState.Create(), logger);
+            await hackRepository2.LoadAsync(cancellationToken);
+            Assert.Equal(20050, hackRepository2.State.AnyThing.Count);
+
+        }
     }
 }

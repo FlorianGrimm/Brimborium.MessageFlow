@@ -18,10 +18,12 @@ public interface IRepositoryTransaction<TRepositoryState>
     : IDisposableWithState
     where TRepositoryState : class, IRepositoryState {
 
-    ValueTask CommitAsync(CancellationToken cancellationToken);
+    ValueTask CommitAsync(RepositorySaveMode saveMode, CancellationToken cancellationToken);
 
     void Cancel();
 }
+
+public enum RepositorySaveMode { Auto, Full, Diff }
 
 public interface IRepositoryPersitence<TRepositoryState, TRepositoryTransaction>
     where TRepositoryState : class, IRepositoryState
@@ -30,6 +32,7 @@ public interface IRepositoryPersitence<TRepositoryState, TRepositoryTransaction>
         CancellationToken cancellationToken);
 
     ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
         TRepositoryTransaction transaction,
         TRepositoryState oldState,
         TRepositoryState nextState,
@@ -41,7 +44,7 @@ public interface IRepositoryPersitence<TRepositoryState, TRepositoryTransaction>
 public interface ITransactionFinalizer<TRepositoryState, TRepositoryTransaction>
     where TRepositoryState : class, IRepositoryState
     where TRepositoryTransaction : class, IRepositoryTransaction<TRepositoryState> {
-    ValueTask CommitAsync(TRepositoryState state, CancellationToken cancellationToken);
+    ValueTask CommitAsync(RepositorySaveMode saveMode, TRepositoryState state, CancellationToken cancellationToken);
     void Cancel();
 }
 

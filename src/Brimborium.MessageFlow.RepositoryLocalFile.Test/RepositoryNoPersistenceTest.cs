@@ -27,7 +27,12 @@ public sealed class HackNoPersistenceRepositoryPersitence(
         return new Optional<HackNoPersistenceRepositoryState>(this.State);
     }
 
-    public ValueTask SaveAsync(HackNoPersistenceRepositoryTransaction transaction, HackNoPersistenceRepositoryState oldState, HackNoPersistenceRepositoryState nextState, CancellationToken cancellationToken) {
+    public ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
+        HackNoPersistenceRepositoryTransaction transaction,
+        HackNoPersistenceRepositoryState oldState,
+        HackNoPersistenceRepositoryState nextState,
+        CancellationToken cancellationToken) {
         this.State = nextState;
         this.Transaction = transaction;
         return ValueTask.CompletedTask;
@@ -89,7 +94,7 @@ public sealed class HackNoPersistenceRepositoryTransaction : BaseRepositoryTrans
         return ItemRepositoryTransaction.Remove(ref this._AnyThing, key);
     }
 
-    public override async ValueTask CommitAsync(CancellationToken cancellationToken) {
+    public override async ValueTask CommitAsync(RepositorySaveMode saveMode, CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(this._TransactionFinalizer is null, this);
 
         var transactionFinalizer = this._TransactionFinalizer;
@@ -98,7 +103,7 @@ public sealed class HackNoPersistenceRepositoryTransaction : BaseRepositoryTrans
             SomeThing = ItemRepositoryTransaction.Finalize(ref this._SomeThing),
             AnyThing = ItemRepositoryTransaction.Finalize(ref this._AnyThing)
         };
-        await transactionFinalizer.CommitAsync(nextState, cancellationToken);
+        await transactionFinalizer.CommitAsync(saveMode, nextState, cancellationToken);
     }
 
     public override void Cancel() {
@@ -123,11 +128,12 @@ public sealed class HackNoPersistenceRepository : BaseRepository<HackNoPersisten
     }
 
     protected override async ValueTask SaveAsync(
+        RepositorySaveMode saveMode,
         HackNoPersistenceRepositoryTransaction transaction,
         HackNoPersistenceRepositoryState oldState,
         HackNoPersistenceRepositoryState nextState,
         CancellationToken cancellationToken) {
-        await this._RepositoryPersitence.SaveAsync(transaction, oldState, nextState, cancellationToken);
+        await this._RepositoryPersitence.SaveAsync(saveMode, transaction, oldState, nextState, cancellationToken);
     }
 }
 
@@ -159,21 +165,21 @@ public class RepositoryNoPersistenceTest {
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingAdd(1, "one");
             transaction.AnyThingAdd(2, "two");
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(2, hackRepository.State.AnyThing.Count);
 
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingUpdate(1, "onemore");
             transaction.AnyThingAdd(3, "three");
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(3, hackRepository.State.AnyThing.Count);
         Assert.Equal("onemore", hackRepository.State.AnyThing[1]);
 
         using (var transaction = await hackRepository.CreateTransaction(cancellationToken)) {
             transaction.AnyThingRemove(1);
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
         }
         Assert.Equal(2, hackRepository.State.AnyThing.Count);
         Assert.Equal("two", hackRepository.State.AnyThing[2]);
@@ -216,7 +222,7 @@ public class RepositoryNoPersistenceTest {
                 for (int i = 0; i < 10000; i++) {
                     transaction.AnyThingAdd(i, "one");
                 }
-                await transaction.CommitAsync(cancellationToken);
+                await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
             }
         });
 
@@ -226,7 +232,7 @@ public class RepositoryNoPersistenceTest {
                 for (int i = 10000; i < 20000; i++) {
                     transaction.AnyThingAdd(i, "two");
                 }
-                await transaction.CommitAsync(cancellationToken);
+                await transaction.CommitAsync(RepositorySaveMode.Auto, cancellationToken);
             }
         });
 
